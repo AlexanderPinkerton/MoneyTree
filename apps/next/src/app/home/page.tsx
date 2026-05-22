@@ -640,15 +640,15 @@ export default function HomePage() {
   }
 
   return (
-    <div className="biz-workspace dark min-h-screen bg-[#050505] text-zinc-100">
-      <AppNavbar className="border-b border-zinc-800 bg-[#050505]/95 text-zinc-100" />
+    <div className="biz-workspace min-h-screen bg-background text-foreground">
+      <AppNavbar className="border-b border-border bg-background/95 text-foreground" />
       <main className="mx-auto grid max-w-[1680px] gap-4 px-4 pb-8 pt-24">
-        <section className="grid gap-3 border-b border-zinc-800 pb-4 lg:grid-cols-[1fr_auto] lg:items-end">
+        <section className="grid gap-3 border-b border-border pb-4 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <h1 className="text-2xl font-semibold tracking-normal">
               Financial Signal Workspace
             </h1>
-            <p className="mt-1 text-sm text-zinc-400">
+            <p className="mt-1 text-sm text-muted-foreground">
               Source: 4chan /biz/. Analysis labels are machine-generated and are
               not investment advice.
             </p>
@@ -717,7 +717,7 @@ export default function HomePage() {
         </section>
 
         <section className="grid gap-3 lg:grid-cols-[360px_minmax(0,1fr)_420px]">
-          <aside className="min-h-[72vh] border border-zinc-800 bg-[#0a0a0a]">
+          <aside className="min-h-[72vh] border border-border bg-card">
             <PanelHeader
               icon={<Activity className="h-4 w-4" />}
               title="Threads"
@@ -740,17 +740,15 @@ export default function HomePage() {
                   }}
                   role="button"
                   tabIndex={0}
-                  className={`block w-full cursor-pointer border-b border-zinc-800/80 px-3 py-3 text-left hover:bg-[#121212] ${
-                    selectedThreadNo === thread.thread_no
-                      ? "bg-zinc-800/70"
-                      : ""
+                  className={`block w-full cursor-pointer border-b border-border/80 px-3 py-3 text-left hover:bg-muted ${
+                    selectedThreadNo === thread.thread_no ? "bg-muted/70" : ""
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs text-zinc-400">
+                    <span className="font-mono text-xs text-muted-foreground">
                       No. {thread.thread_no}
                     </span>
-                    <span className="text-xs text-zinc-400">
+                    <span className="text-xs text-muted-foreground">
                       {thread.post_count ?? 0} posts
                     </span>
                   </div>
@@ -787,7 +785,7 @@ export default function HomePage() {
             </div>
           </aside>
 
-          <section className="min-h-[72vh] border border-zinc-800 bg-[#0a0a0a]">
+          <section className="min-h-[72vh] border border-border bg-card">
             <PanelHeader
               icon={
                 readerMode === "corpus" ? (
@@ -810,7 +808,7 @@ export default function HomePage() {
               action={
                 readerMode === "thread" && threadDetail?.thread.source_url ? (
                   <a
-                    className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-100"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                     href={threadDetail.thread.source_url}
                     target="_blank"
                     rel="noreferrer"
@@ -821,7 +819,7 @@ export default function HomePage() {
               }
             />
             {readerMode === "thread" ? (
-              <div className="grid gap-2 border-b border-zinc-800 p-3 md:grid-cols-[1fr_auto]">
+              <div className="grid gap-2 border-b border-border p-3 md:grid-cols-[1fr_auto]">
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -833,7 +831,7 @@ export default function HomePage() {
                 </Button>
               </div>
             ) : readerMode === "feed" ? (
-              <div className="grid gap-2 border-b border-zinc-800 p-3 md:grid-cols-[1fr_auto]">
+              <div className="grid gap-2 border-b border-border p-3 md:grid-cols-[1fr_auto]">
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -849,7 +847,7 @@ export default function HomePage() {
                 </Button>
               </div>
             ) : (
-              <div className="grid gap-2 border-b border-zinc-800 p-3 md:grid-cols-[1fr_130px_120px_130px_150px_auto]">
+              <div className="grid gap-2 border-b border-border p-3 md:grid-cols-[1fr_130px_120px_130px_150px_auto]">
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -869,7 +867,7 @@ export default function HomePage() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-zinc-800 bg-[#0a0a0a] text-zinc-100">
+                  <SelectContent className="border-border bg-card text-foreground">
                     <SelectItem value="all">All stance</SelectItem>
                     <SelectItem value="bullish">Bullish</SelectItem>
                     <SelectItem value="bearish">Bearish</SelectItem>
@@ -881,7 +879,7 @@ export default function HomePage() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-zinc-800 bg-[#0a0a0a] text-zinc-100">
+                  <SelectContent className="border-border bg-card text-foreground">
                     <SelectItem value="all">All analysis</SelectItem>
                     <SelectItem value="raw">Raw</SelectItem>
                     <SelectItem value="triaged">Triaged</SelectItem>
@@ -898,13 +896,13 @@ export default function HomePage() {
               </div>
             )}
             {readerMode === "corpus" && corpusSearched && (
-              <div className="border-b border-zinc-800 bg-[#121212] px-3 py-2 text-xs text-zinc-400">
+              <div className="border-b border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
                 Showing corpus results ranked by text/tag/symbol match,
                 confidence, and recency.
               </div>
             )}
             {readerMode === "feed" && (
-              <div className="border-b border-zinc-800 bg-[#121212] px-3 py-2 text-xs text-zinc-400">
+              <div className="border-b border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
                 Showing latest captured posts across all threads, newest first.
               </div>
             )}
@@ -967,7 +965,7 @@ export default function HomePage() {
           </section>
 
           <aside className="grid min-h-[72vh] gap-3">
-            <section className="border border-zinc-800 bg-[#0a0a0a]">
+            <section className="border border-border bg-card">
               <PanelHeader
                 icon={<TrendingUp className="h-4 w-4" />}
                 title="Security Summary"
@@ -986,7 +984,7 @@ export default function HomePage() {
                 {securitySummary ? (
                   <SecuritySummary summary={securitySummary} />
                 ) : (
-                  <p className="text-sm text-zinc-400">
+                  <p className="text-sm text-muted-foreground">
                     Enter a symbol to collect related /biz/ posts and summarize
                     the bullish and bearish case.
                   </p>
@@ -994,10 +992,10 @@ export default function HomePage() {
               </div>
             </section>
 
-            <section className="border border-zinc-800 bg-[#0a0a0a]">
+            <section className="border border-border bg-card">
               <PanelHeader icon={<Bell className="h-4 w-4" />} title="Ingest" />
               <div className="grid gap-3 p-3 text-sm">
-                <div className="rounded-md border border-zinc-800 bg-[#121212] p-3">
+                <div className="rounded-md border border-border bg-muted p-3">
                   {notice}
                 </div>
                 {activeIngest && (
@@ -1034,11 +1032,11 @@ export default function HomePage() {
                       : "none"
                   }
                 />
-                <div className="rounded-md border border-zinc-800 bg-[#0a0a0a] p-3">
-                  <div className="mb-2 text-[11px] uppercase text-zinc-400">
+                <div className="rounded-md border border-border bg-card p-3">
+                  <div className="mb-2 text-[11px] uppercase text-muted-foreground">
                     Progress Log
                   </div>
-                  <div className="grid max-h-48 gap-2 overflow-y-auto font-mono text-xs text-zinc-300">
+                  <div className="grid max-h-48 gap-2 overflow-y-auto font-mono text-xs text-foreground">
                     {progressEvents.length > 0 ? (
                       progressEvents.map((event, index) => (
                         <div key={`${event}-${index}`}>{event}</div>
@@ -1051,7 +1049,7 @@ export default function HomePage() {
               </div>
             </section>
 
-            <section className="border border-zinc-800 bg-[#0a0a0a]">
+            <section className="border border-border bg-card">
               <PanelHeader
                 icon={<BarChart3 className="h-4 w-4" />}
                 title="Analysis"
@@ -1169,7 +1167,7 @@ function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex h-11 items-center justify-between border-b border-zinc-800 px-3">
+    <div className="flex h-11 items-center justify-between border-b border-border px-3">
       <div className="flex items-center gap-2 text-sm font-semibold">
         {icon}
         {title}
@@ -1193,7 +1191,9 @@ function CorpusOverview({
   const [blacklistOpen, setBlacklistOpen] = useState(false);
 
   if (!overview) {
-    return <div className="p-6 text-sm text-zinc-400">Loading corpus...</div>;
+    return (
+      <div className="p-6 text-sm text-muted-foreground">Loading corpus...</div>
+    );
   }
 
   return (
@@ -1239,7 +1239,7 @@ function CorpusOverview({
           >
             <Ban className="h-4 w-4" />
             Manage
-            <span className="text-zinc-500">
+            <span className="text-muted-foreground">
               {overview.term_blacklist?.length ?? 0}
             </span>
           </Button>
@@ -1268,16 +1268,13 @@ function CorpusOverview({
         <div className="mb-2 text-sm font-semibold">Recent Signal Evidence</div>
         <div className="grid gap-2">
           {overview.recent_posts.slice(0, 8).map((post) => (
-            <div
-              key={post.id}
-              className="border border-zinc-800 bg-[#0a0a0a] p-3"
-            >
-              <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+            <div key={post.id} className="border border-border bg-card p-3">
+              <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="font-mono">No. {post.post_no}</span>
                 <AnalysisBadge state={post.analysis_state} />
                 <span>{new Date(post.posted_at).toLocaleString()}</span>
               </div>
-              <p className="line-clamp-3 text-sm text-zinc-200">
+              <p className="line-clamp-3 text-sm text-foreground">
                 {post.clean_text || "[no text]"}
               </p>
             </div>
@@ -1296,7 +1293,7 @@ function TrendingSecuritiesPanel({
   onSymbolClick: (symbol: string) => void;
 }) {
   return (
-    <section className="border border-zinc-800 bg-[#121212] p-3">
+    <section className="border border-border bg-muted p-3">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <TrendingUp className="h-4 w-4" />
         Trending Securities
@@ -1317,17 +1314,17 @@ function TrendingSecuritiesPanel({
                 key={security.symbol}
                 type="button"
                 onClick={() => onSymbolClick(security.symbol)}
-                className="grid gap-1 border border-zinc-800 bg-[#0a0a0a] px-3 py-2 text-left hover:border-emerald-700/60"
+                className="grid gap-1 border border-border bg-card px-3 py-2 text-left hover:border-emerald-700/60"
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-mono text-sm font-semibold text-emerald-300">
                     {security.symbol}
                   </span>
-                  <span className="text-xs text-zinc-400">
+                  <span className="text-xs text-muted-foreground">
                     {security.count} mentions
                   </span>
                 </div>
-                <div className="flex h-1.5 overflow-hidden rounded-full bg-zinc-900">
+                <div className="flex h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full bg-emerald-400"
                     style={{ width: `${bullPercent}%` }}
@@ -1341,7 +1338,7 @@ function TrendingSecuritiesPanel({
                     style={{ width: `${bearPercent}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[11px] text-zinc-400">
+                <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>{security.bullish} bull</span>
                   <span>{security.mixed + security.neutral} neutral/mixed</span>
                   <span>{security.bearish} bear</span>
@@ -1350,7 +1347,9 @@ function TrendingSecuritiesPanel({
             );
           })
         ) : (
-          <span className="text-sm text-zinc-400">No securities yet.</span>
+          <span className="text-sm text-muted-foreground">
+            No securities yet.
+          </span>
         )}
       </div>
     </section>
@@ -1382,20 +1381,22 @@ function TermBlacklistDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-hidden border-zinc-800 bg-[#0a0a0a] text-zinc-100 sm:max-w-2xl">
+      <DialogContent className="max-h-[80vh] overflow-hidden border-border bg-card text-foreground sm:max-w-2xl">
         <div>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Ban className="h-4 w-4" />
             Term Blacklist
           </DialogTitle>
-          <DialogDescription className="mt-1 text-sm text-zinc-400">
+          <DialogDescription className="mt-1 text-sm text-muted-foreground">
             Hidden terms are excluded from corpus heatmaps and overview lists.
           </DialogDescription>
         </div>
-        <section className="border border-zinc-800 bg-[#121212] p-3">
+        <section className="border border-border bg-muted p-3">
           <div className="mb-3 flex items-center justify-between gap-3">
             <span className="text-sm font-semibold">Hidden Terms</span>
-            <span className="text-xs text-zinc-500">{terms.length} hidden</span>
+            <span className="text-xs text-muted-foreground">
+              {terms.length} hidden
+            </span>
           </div>
           <form onSubmit={submitManualTerm} className="mb-3 flex gap-2">
             <Input
@@ -1415,21 +1416,21 @@ function TermBlacklistDialog({
                 terms.map((term) => (
                   <span
                     key={term.id}
-                    className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-200"
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground"
                   >
                     {term.normalized_term}
                     <button
                       type="button"
                       title={`Remove ${term.normalized_term}`}
                       onClick={() => onRemove(term.normalized_term)}
-                      className="text-zinc-500 hover:text-emerald-300"
+                      className="text-muted-foreground hover:text-emerald-300"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-zinc-400">
+                <span className="text-sm text-muted-foreground">
                   Click a heatmap term to hide it.
                 </span>
               )}
@@ -1463,14 +1464,16 @@ function TermCloud({
   const max = Math.max(...terms.map((term) => term.weight), 1);
 
   return (
-    <section className="border border-zinc-800 bg-[#121212] p-3">
+    <section className="border border-border bg-muted p-3">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold">
           {icon}
           {title}
         </div>
         <div className="flex items-center gap-2">
-          {hint ? <span className="text-xs text-zinc-500">{hint}</span> : null}
+          {hint ? (
+            <span className="text-xs text-muted-foreground">{hint}</span>
+          ) : null}
           {action}
         </div>
       </div>
@@ -1481,7 +1484,7 @@ function TermCloud({
             return (
               <span
                 key={term.value}
-                className="inline-flex overflow-hidden rounded-md border border-zinc-800 text-xs"
+                className="inline-flex overflow-hidden rounded-md border border-border text-xs"
                 style={
                   heat
                     ? {
@@ -1493,17 +1496,17 @@ function TermCloud({
                 <button
                   type="button"
                   onClick={() => onTermClick?.(term)}
-                  className="px-2 py-1 text-left hover:bg-white/5"
+                  className="px-2 py-1 text-left hover:bg-accent"
                 >
                   {term.value}{" "}
-                  <span className="text-zinc-400">{term.count}</span>
+                  <span className="text-muted-foreground">{term.count}</span>
                 </button>
                 {onTermBlacklist ? (
                   <button
                     type="button"
                     title={`Hide ${term.value}`}
                     onClick={() => onTermBlacklist(term.value)}
-                    className="border-l border-zinc-800 px-1.5 text-zinc-500 hover:bg-red-500/10 hover:text-red-300"
+                    className="border-l border-border px-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-300"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -1512,7 +1515,7 @@ function TermCloud({
             );
           })
         ) : (
-          <span className="text-sm text-zinc-400">No terms yet.</span>
+          <span className="text-sm text-muted-foreground">No terms yet.</span>
         )}
       </div>
     </section>
@@ -1540,7 +1543,9 @@ function PostList({
 }) {
   if (posts.length === 0) {
     return (
-      <div className="p-6 text-sm text-zinc-400">No posts loaded yet.</div>
+      <div className="p-6 text-sm text-muted-foreground">
+        No posts loaded yet.
+      </div>
     );
   }
 
@@ -1588,10 +1593,10 @@ function PostArticle({
     <article
       onMouseEnter={() => onPostRead?.(post)}
       className={`border-b p-4 ${
-        read ? "border-zinc-800/80" : "border-amber-700/60 bg-amber-950/30"
+        read ? "border-border/80" : "border-amber-700/60 bg-amber-950/30"
       }`}
     >
-      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span className="font-mono">No. {post.post_no}</span>
         {showThreadContext && (
           <button
@@ -1609,13 +1614,13 @@ function PostArticle({
           href={post.source_url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 hover:text-zinc-100"
+          className="inline-flex items-center gap-1 hover:text-foreground"
         >
           source <ExternalLink className="h-3 w-3" />
         </a>
       </div>
       {showThreadContext && (
-        <div className="mt-2 border-l-2 border-zinc-800 pl-3 text-xs text-zinc-400">
+        <div className="mt-2 border-l-2 border-border pl-3 text-xs text-muted-foreground">
           {post.thread_subject || "Untitled thread"}
         </div>
       )}
@@ -1629,7 +1634,7 @@ function PostArticle({
         />
       )}
       {aiSummary && <PostSummary summary={aiSummary.value} />}
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-200">
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
         {post.clean_text || "[no text]"}
       </p>
       <div className="mt-3 flex flex-wrap gap-1">
@@ -1653,7 +1658,7 @@ function PostArticle({
 
 function PostSummary({ summary }: { summary: string }) {
   return (
-    <section className="mt-3 border border-emerald-700/50 bg-zinc-900 px-3 py-2 text-sm leading-6 text-emerald-100">
+    <section className="mt-3 border border-emerald-700/50 bg-card px-3 py-2 text-sm leading-6 text-emerald-100">
       <div className="mb-1 text-[11px] font-semibold uppercase text-emerald-300">
         AI summary
       </div>
@@ -1695,7 +1700,7 @@ function AttachmentPreview({
       className={
         compact
           ? "mt-2 block w-fit"
-          : "mt-3 block w-fit rounded-md border border-zinc-800 bg-[#121212] p-2 text-left hover:border-emerald-800"
+          : "mt-3 block w-fit rounded-md border border-border bg-muted p-2 text-left hover:border-emerald-800"
       }
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- Direct remote 4cdn preview; do not proxy or persist attachments. */}
@@ -1706,12 +1711,12 @@ function AttachmentPreview({
         referrerPolicy="no-referrer"
         className={
           compact
-            ? "h-20 w-20 rounded border border-zinc-800 object-cover"
+            ? "h-20 w-20 rounded border border-border object-cover"
             : "max-h-80 max-w-full rounded object-contain"
         }
       />
       {!compact && (filename || dimensions) && (
-        <div className="mt-1 text-xs text-zinc-400">
+        <div className="mt-1 text-xs text-muted-foreground">
           {[filename, dimensions].filter(Boolean).join(" · ")}
         </div>
       )}
@@ -1747,18 +1752,18 @@ function ImagePreviewDialog({
   return (
     <Dialog open={Boolean(preview)} onOpenChange={onOpenChange}>
       <DialogContent
-        className={`grid grid-rows-[auto_minmax(0,1fr)] gap-0 border-zinc-800 bg-zinc-950 p-0 text-white ${
+        className={`grid grid-rows-[auto_minmax(0,1fr)] gap-0 border-border bg-background p-0 text-white ${
           fullscreen
             ? "h-[94vh] w-[96vw] max-w-[96vw]"
             : "h-[50vh] w-[50vw] max-w-[50vw] min-w-[360px]"
         }`}
       >
-        <div className="flex min-h-14 items-center justify-between gap-3 border-b border-zinc-800 px-4 pr-12">
+        <div className="flex min-h-14 items-center justify-between gap-3 border-b border-border px-4 pr-12">
           <div>
             <DialogTitle className="text-sm text-white">
               {preview?.title ?? "Image preview"}
             </DialogTitle>
-            <DialogDescription className="mt-1 text-xs text-zinc-400">
+            <DialogDescription className="mt-1 text-xs text-muted-foreground">
               {[filename, dimensions].filter(Boolean).join(" · ") ||
                 "Remote attachment preview"}
             </DialogDescription>
@@ -1768,19 +1773,19 @@ function ImagePreviewDialog({
               type="button"
               size="sm"
               variant="outline"
-              className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+              className="border-border bg-card text-foreground hover:bg-muted"
               onClick={() => onZoomChange(Math.max(1, zoom - 0.25))}
             >
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <span className="w-14 text-center font-mono text-xs text-zinc-300">
+            <span className="w-14 text-center font-mono text-xs text-foreground">
               {Math.round(zoom * 100)}%
             </span>
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+              className="border-border bg-card text-foreground hover:bg-muted"
               onClick={() => onZoomChange(Math.min(3, zoom + 0.25))}
             >
               <ZoomIn className="h-4 w-4" />
@@ -1789,7 +1794,7 @@ function ImagePreviewDialog({
               type="button"
               size="sm"
               variant="outline"
-              className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+              className="border-border bg-card text-foreground hover:bg-muted"
               onClick={() => onFullscreenChange(!fullscreen)}
             >
               {fullscreen ? (
@@ -1803,7 +1808,7 @@ function ImagePreviewDialog({
                 href={imageUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-9 items-center gap-2 border border-zinc-700 px-3 text-xs text-zinc-200 hover:bg-zinc-900"
+                className="inline-flex h-9 items-center gap-2 border border-border px-3 text-xs text-foreground hover:bg-card"
               >
                 <ExternalLink className="h-4 w-4" />
                 Open
@@ -1819,7 +1824,7 @@ function ImagePreviewDialog({
                 src={imageUrl}
                 alt={filename || "post attachment"}
                 referrerPolicy="no-referrer"
-                className="rounded border border-zinc-800 object-contain"
+                className="rounded border border-border object-contain"
                 style={{
                   maxWidth: zoom === 1 ? "100%" : "none",
                   maxHeight: zoom === 1 ? "100%" : "none",
@@ -1850,7 +1855,7 @@ function SecuritySummary({ summary }: { summary: BizSecuritySummaryDto }) {
         <Metric label="Bear" value={summary.bearish_count} />
         <Metric label="Mixed" value={summary.mixed_count} />
       </div>
-      <p className="rounded-md border border-zinc-800 bg-[#121212] p-3 leading-6">
+      <p className="rounded-md border border-border bg-muted p-3 leading-6">
         {summary.summary}
       </p>
       <Evidence
@@ -1900,8 +1905,8 @@ function Evidence({
 
 function Metric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-md border border-zinc-800 bg-[#0a0a0a] px-3 py-2">
-      <div className="text-[11px] uppercase text-zinc-400">{label}</div>
+    <div className="rounded-md border border-border bg-card px-3 py-2">
+      <div className="text-[11px] uppercase text-muted-foreground">{label}</div>
       <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
   );
@@ -1926,18 +1931,18 @@ function IngestProgressBar({
   );
 
   return (
-    <div className="rounded-md border border-zinc-800 bg-[#0a0a0a] p-3">
+    <div className="rounded-md border border-border bg-card p-3">
       <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-        <span className="font-medium text-zinc-200">{progress.message}</span>
-        <span className="font-mono text-zinc-400">{percent}%</span>
+        <span className="font-medium text-foreground">{progress.message}</span>
+        <span className="font-mono text-muted-foreground">{percent}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-900">
+      <div className="h-2 overflow-hidden rounded-full bg-card">
         <div
           className="h-full rounded-full bg-emerald-400 transition-all"
           style={{ width: `${percent}%` }}
         />
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-400">
+      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
         <span>
           {progress.checked}/{progress.planned || "?"} threads checked
         </span>
@@ -1971,20 +1976,20 @@ function AnalysisProgressBar({
       : (status?.progress_percent ?? 0);
 
   return (
-    <div className="rounded-md border border-zinc-800 bg-[#0a0a0a] p-3">
+    <div className="rounded-md border border-border bg-card p-3">
       <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-        <span className="font-medium text-zinc-200">
+        <span className="font-medium text-foreground">
           {status?.current_message ?? "Analysis status unavailable"}
         </span>
-        <span className="font-mono text-zinc-400">{percent}%</span>
+        <span className="font-mono text-muted-foreground">{percent}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-900">
+      <div className="h-2 overflow-hidden rounded-full bg-card">
         <div
           className="h-full rounded-full bg-emerald-400 transition-all"
           style={{ width: `${percent}%` }}
         />
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-400">
+      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
         <span>
           {complete}/{total || "?"} posts analyzed
         </span>
@@ -2009,7 +2014,7 @@ function StatusPill({ status }: { status: BizIngestStatusDto | null }) {
     : "No ingest run";
 
   return (
-    <div className="inline-flex h-9 items-center gap-2 border border-zinc-800 bg-[#0a0a0a] px-3 text-sm">
+    <div className="inline-flex h-9 items-center gap-2 border border-border bg-card px-3 text-sm">
       <span
         className={`h-2 w-2 rounded-full ${
           run?.status === "failed"

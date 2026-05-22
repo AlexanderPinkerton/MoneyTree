@@ -54,7 +54,7 @@ file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-site_url = "http://localhost:3024"
+site_url = "http://localhost:3069"
 additional_redirect_urls = [ "https://127.0.0.1:3000" ]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true

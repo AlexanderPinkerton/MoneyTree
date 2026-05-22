@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { GradientText } from "@/components/ui/gradient-text";
 
 import { AvatarMenu } from "../custom/avatar-menu";
+import { ThemeToggle } from "../custom/theme-toggle";
 
 interface AppNavbarProps {
   className?: string;
@@ -62,7 +63,10 @@ export function AppNavbar({
   const finalNavLinks = navLinks !== undefined ? navLinks : allNavLinks;
   const finalCtas = ctas !== undefined ? ctas : allCtas;
 
-  const specialtyComponents = [<AvatarMenu key="avatar" />].filter(Boolean);
+  const specialtyComponents = [
+    <ThemeToggle key="theme-toggle" />,
+    <AvatarMenu key="avatar" />,
+  ].filter(Boolean);
 
   return (
     <Navbar
