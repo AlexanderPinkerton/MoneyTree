@@ -1190,6 +1190,8 @@ function CorpusOverview({
   onTermRemoveBlacklist: (term: string) => void;
   onTermSearch: (term: { value: string; kind?: string }) => void;
 }) {
+  const [blacklistOpen, setBlacklistOpen] = useState(false);
+
   if (!overview) {
     return <div className="p-6 text-sm text-zinc-400">Loading corpus...</div>;
   }
@@ -1218,6 +1220,7 @@ function CorpusOverview({
           title="Top Subjects"
           terms={overview.top_subjects ?? []}
           onTermClick={onTermSearch}
+          onTermBlacklist={onTermBlacklist}
         />
       </section>
 
@@ -1226,11 +1229,28 @@ function CorpusOverview({
         title="Terminology Heatmap"
         terms={overview.signal_terms ?? overview.heatmap_terms}
         heat
-        hint="Click a term to hide it from this view"
-        onTermClick={(term) => onTermBlacklist(term.value)}
+        hint="Click to search; X hides the term"
+        action={
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setBlacklistOpen(true)}
+          >
+            <Ban className="h-4 w-4" />
+            Manage
+            <span className="text-zinc-500">
+              {overview.term_blacklist?.length ?? 0}
+            </span>
+          </Button>
+        }
+        onTermClick={onTermSearch}
+        onTermBlacklist={onTermBlacklist}
       />
 
-      <TermBlacklistPanel
+      <TermBlacklistDialog
+        open={blacklistOpen}
+        onOpenChange={setBlacklistOpen}
         terms={overview.term_blacklist ?? []}
         onAdd={onTermBlacklist}
         onRemove={onTermRemoveBlacklist}
@@ -1241,6 +1261,7 @@ function CorpusOverview({
         title="Top Tags"
         terms={overview.top_tags}
         onTermClick={onTermSearch}
+        onTermBlacklist={onTermBlacklist}
       />
 
       <section>
@@ -1283,11 +1304,14 @@ function TrendingSecuritiesPanel({
       <div className="grid gap-2">
         {securities.length > 0 ? (
           securities.slice(0, 10).map((security) => {
-            const directional = security.bullish + security.bearish;
-            const bullPercent =
-              directional > 0
-                ? Math.round((security.bullish / directional) * 100)
-                : 0;
+            const neutralMixed = security.mixed + security.neutral;
+            const total = Math.max(
+              security.bullish + security.bearish + neutralMixed,
+              1,
+            );
+            const bullPercent = Math.round((security.bullish / total) * 100);
+            const middlePercent = Math.round((neutralMixed / total) * 100);
+            const bearPercent = Math.max(0, 100 - bullPercent - middlePercent);
             return (
               <button
                 key={security.symbol}
@@ -1303,16 +1327,24 @@ function TrendingSecuritiesPanel({
                     {security.count} mentions
                   </span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-zinc-900">
+                <div className="flex h-1.5 overflow-hidden rounded-full bg-zinc-900">
                   <div
-                    className="h-full rounded-full bg-emerald-400"
+                    className="h-full bg-emerald-400"
                     style={{ width: `${bullPercent}%` }}
+                  />
+                  <div
+                    className="h-full bg-zinc-500"
+                    style={{ width: `${middlePercent}%` }}
+                  />
+                  <div
+                    className="h-full bg-red-500"
+                    style={{ width: `${bearPercent}%` }}
                   />
                 </div>
                 <div className="flex justify-between text-[11px] text-zinc-400">
                   <span>{security.bullish} bull</span>
-                  <span>{security.bearish} bear</span>
                   <span>{security.mixed + security.neutral} neutral/mixed</span>
+                  <span>{security.bearish} bear</span>
                 </div>
               </button>
             );
@@ -1325,11 +1357,15 @@ function TrendingSecuritiesPanel({
   );
 }
 
-function TermBlacklistPanel({
+function TermBlacklistDialog({
+  open,
+  onOpenChange,
   terms,
   onAdd,
   onRemove,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   terms: BizTermBlacklistEntryDto[];
   onAdd: (term: string) => void;
   onRemove: (term: string) => void;
@@ -1345,51 +1381,63 @@ function TermBlacklistPanel({
   }
 
   return (
-    <section className="border border-zinc-800 bg-[#121212] p-3">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Ban className="h-4 w-4" />
-          Term Blacklist
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[80vh] overflow-hidden border-zinc-800 bg-[#0a0a0a] text-zinc-100 sm:max-w-2xl">
+        <div>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Ban className="h-4 w-4" />
+            Term Blacklist
+          </DialogTitle>
+          <DialogDescription className="mt-1 text-sm text-zinc-400">
+            Hidden terms are excluded from corpus heatmaps and overview lists.
+          </DialogDescription>
         </div>
-        <span className="text-xs text-zinc-500">{terms.length} hidden</span>
-      </div>
-      <form onSubmit={submitManualTerm} className="mb-3 flex gap-2">
-        <Input
-          value={manualTerm}
-          onChange={(event) => setManualTerm(event.target.value)}
-          placeholder="Add hidden term"
-          className="h-8"
-        />
-        <Button type="submit" size="sm" variant="outline">
-          <Ban className="h-4 w-4" />
-          Hide
-        </Button>
-      </form>
-      <div className="flex flex-wrap gap-2">
-        {terms.length > 0 ? (
-          terms.map((term) => (
-            <span
-              key={term.id}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-200"
-            >
-              {term.normalized_term}
-              <button
-                type="button"
-                title={`Remove ${term.normalized_term}`}
-                onClick={() => onRemove(term.normalized_term)}
-                className="text-zinc-500 hover:text-emerald-300"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </span>
-          ))
-        ) : (
-          <span className="text-sm text-zinc-400">
-            Click a heatmap term to hide it.
-          </span>
-        )}
-      </div>
-    </section>
+        <section className="border border-zinc-800 bg-[#121212] p-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold">Hidden Terms</span>
+            <span className="text-xs text-zinc-500">{terms.length} hidden</span>
+          </div>
+          <form onSubmit={submitManualTerm} className="mb-3 flex gap-2">
+            <Input
+              value={manualTerm}
+              onChange={(event) => setManualTerm(event.target.value)}
+              placeholder="Add hidden term"
+              className="h-8"
+            />
+            <Button type="submit" size="sm" variant="outline">
+              <Ban className="h-4 w-4" />
+              Hide
+            </Button>
+          </form>
+          <div className="max-h-[42vh] overflow-y-auto">
+            <div className="flex flex-wrap gap-2">
+              {terms.length > 0 ? (
+                terms.map((term) => (
+                  <span
+                    key={term.id}
+                    className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-200"
+                  >
+                    {term.normalized_term}
+                    <button
+                      type="button"
+                      title={`Remove ${term.normalized_term}`}
+                      onClick={() => onRemove(term.normalized_term)}
+                      className="text-zinc-500 hover:text-emerald-300"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-zinc-400">
+                  Click a heatmap term to hide it.
+                </span>
+              )}
+            </div>
+          </div>
+        </section>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1399,14 +1447,18 @@ function TermCloud({
   terms,
   heat = false,
   hint,
+  action,
   onTermClick,
+  onTermBlacklist,
 }: {
   icon: ReactNode;
   title: string;
   terms: Array<{ value: string; count: number; weight: number; kind?: string }>;
   heat?: boolean;
   hint?: string;
+  action?: ReactNode;
   onTermClick?: (term: { value: string; kind?: string }) => void;
+  onTermBlacklist?: (term: string) => void;
 }) {
   const max = Math.max(...terms.map((term) => term.weight), 1);
 
@@ -1417,18 +1469,19 @@ function TermCloud({
           {icon}
           {title}
         </div>
-        {hint ? <span className="text-xs text-zinc-500">{hint}</span> : null}
+        <div className="flex items-center gap-2">
+          {hint ? <span className="text-xs text-zinc-500">{hint}</span> : null}
+          {action}
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         {terms.length > 0 ? (
           terms.map((term) => {
             const intensity = Math.max(0.18, term.weight / max);
             return (
-              <button
+              <span
                 key={term.value}
-                type="button"
-                onClick={() => onTermClick?.(term)}
-                className="rounded-md border border-zinc-800 px-2 py-1 text-xs"
+                className="inline-flex overflow-hidden rounded-md border border-zinc-800 text-xs"
                 style={
                   heat
                     ? {
@@ -1437,8 +1490,25 @@ function TermCloud({
                     : undefined
                 }
               >
-                {term.value} <span className="text-zinc-400">{term.count}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onTermClick?.(term)}
+                  className="px-2 py-1 text-left hover:bg-white/5"
+                >
+                  {term.value}{" "}
+                  <span className="text-zinc-400">{term.count}</span>
+                </button>
+                {onTermBlacklist ? (
+                  <button
+                    type="button"
+                    title={`Hide ${term.value}`}
+                    onClick={() => onTermBlacklist(term.value)}
+                    className="border-l border-zinc-800 px-1.5 text-zinc-500 hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </span>
             );
           })
         ) : (
