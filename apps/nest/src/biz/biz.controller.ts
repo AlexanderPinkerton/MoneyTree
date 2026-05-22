@@ -453,6 +453,14 @@ export class BizController {
     return { requeued: posts.length };
   }
 
+  @Post("analysis/reprocess-sentiment")
+  async reprocessSentiment(@Query("limit") limit = "1000") {
+    const requeued = await this.processing.enqueueSentimentReprocess(
+      this.parseTake(limit, 5000),
+    );
+    return { requeued };
+  }
+
   @Get("analysis/status")
   async getAnalysisStatus() {
     const [triage, ai] = await Promise.all([

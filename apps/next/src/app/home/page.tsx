@@ -746,9 +746,7 @@ export default function HomePage() {
                   role="button"
                   tabIndex={0}
                   className={`block w-full cursor-pointer border-b border-border/80 px-3 py-3 text-left hover:bg-muted ${
-                    selectedThreadNo === thread.thread_no
-                      ? "bg-muted/70"
-                      : ""
+                    selectedThreadNo === thread.thread_no ? "bg-muted/70" : ""
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -760,7 +758,9 @@ export default function HomePage() {
                     </span>
                   </div>
                   {isThreadUnread(thread, readPostNos) && (
-                    <Badge className="mt-2 bg-amber-500 text-black">new</Badge>
+                    <Badge className="mt-2 bg-emerald-600 text-white dark:bg-emerald-400 dark:text-black">
+                      new
+                    </Badge>
                   )}
                   {thread.active && thread.attachment && (
                     <AttachmentPreview
@@ -1195,8 +1195,12 @@ function CorpusOverview({
   onTermRemoveBlacklist: (term: string) => void;
   onTermSearch: (term: { value: string; kind?: string }) => void;
 }) {
+  const [blacklistOpen, setBlacklistOpen] = useState(false);
+
   if (!overview) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading corpus...</div>;
+    return (
+      <div className="p-6 text-sm text-muted-foreground">Loading corpus...</div>
+    );
   }
 
   return (
@@ -1223,6 +1227,7 @@ function CorpusOverview({
           title="Top Subjects"
           terms={overview.top_subjects ?? []}
           onTermClick={onTermSearch}
+          onTermBlacklist={onTermBlacklist}
         />
       </section>
 
@@ -1231,11 +1236,28 @@ function CorpusOverview({
         title="Terminology Heatmap"
         terms={overview.signal_terms ?? overview.heatmap_terms}
         heat
-        hint="Click a term to hide it from this view"
-        onTermClick={(term) => onTermBlacklist(term.value)}
+        hint="Click to search; X hides the term"
+        action={
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setBlacklistOpen(true)}
+          >
+            <Ban className="h-4 w-4" />
+            Manage
+            <span className="text-muted-foreground">
+              {overview.term_blacklist?.length ?? 0}
+            </span>
+          </Button>
+        }
+        onTermClick={onTermSearch}
+        onTermBlacklist={onTermBlacklist}
       />
 
-      <TermBlacklistPanel
+      <TermBlacklistDialog
+        open={blacklistOpen}
+        onOpenChange={setBlacklistOpen}
         terms={overview.term_blacklist ?? []}
         onAdd={onTermBlacklist}
         onRemove={onTermRemoveBlacklist}
@@ -1246,16 +1268,14 @@ function CorpusOverview({
         title="Top Tags"
         terms={overview.top_tags}
         onTermClick={onTermSearch}
+        onTermBlacklist={onTermBlacklist}
       />
 
       <section>
         <div className="mb-2 text-sm font-semibold">Recent Signal Evidence</div>
         <div className="grid gap-2">
           {overview.recent_posts.slice(0, 8).map((post) => (
-            <div
-              key={post.id}
-              className="border border-border bg-card p-3"
-            >
+            <div key={post.id} className="border border-border bg-card p-3">
               <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="font-mono">No. {post.post_no}</span>
                 <AnalysisBadge state={post.analysis_state} />
@@ -1288,11 +1308,14 @@ function TrendingSecuritiesPanel({
       <div className="grid gap-2">
         {securities.length > 0 ? (
           securities.slice(0, 10).map((security) => {
-            const directional = security.bullish + security.bearish;
-            const bullPercent =
-              directional > 0
-                ? Math.round((security.bullish / directional) * 100)
-                : 0;
+            const neutralMixed = security.mixed + security.neutral;
+            const total = Math.max(
+              security.bullish + security.bearish + neutralMixed,
+              1,
+            );
+            const bullPercent = Math.round((security.bullish / total) * 100);
+            const middlePercent = Math.round((neutralMixed / total) * 100);
+            const bearPercent = Math.max(0, 100 - bullPercent - middlePercent);
             return (
               <button
                 key={security.symbol}
@@ -1306,33 +1329,47 @@ function TrendingSecuritiesPanel({
                     {security.count} mentions
                   </span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-card">
+                <div className="flex h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-emerald-400"
+                    className="h-full bg-emerald-400"
                     style={{ width: `${bullPercent}%` }}
+                  />
+                  <div
+                    className="h-full bg-zinc-500"
+                    style={{ width: `${middlePercent}%` }}
+                  />
+                  <div
+                    className="h-full bg-red-500"
+                    style={{ width: `${bearPercent}%` }}
                   />
                 </div>
                 <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>{security.bullish} bull</span>
-                  <span>{security.bearish} bear</span>
                   <span>{security.mixed + security.neutral} neutral/mixed</span>
+                  <span>{security.bearish} bear</span>
                 </div>
               </button>
             );
           })
         ) : (
-          <span className="text-sm text-muted-foreground">No securities yet.</span>
+          <span className="text-sm text-muted-foreground">
+            No securities yet.
+          </span>
         )}
       </div>
     </section>
   );
 }
 
-function TermBlacklistPanel({
+function TermBlacklistDialog({
+  open,
+  onOpenChange,
   terms,
   onAdd,
   onRemove,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   terms: BizTermBlacklistEntryDto[];
   onAdd: (term: string) => void;
   onRemove: (term: string) => void;
@@ -1348,51 +1385,65 @@ function TermBlacklistPanel({
   }
 
   return (
-    <section className="border border-border bg-muted p-3">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Ban className="h-4 w-4" />
-          Term Blacklist
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[80vh] overflow-hidden border-border bg-card text-foreground sm:max-w-2xl">
+        <div>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Ban className="h-4 w-4" />
+            Term Blacklist
+          </DialogTitle>
+          <DialogDescription className="mt-1 text-sm text-muted-foreground">
+            Hidden terms are excluded from corpus heatmaps and overview lists.
+          </DialogDescription>
         </div>
-        <span className="text-xs text-muted-foreground">{terms.length} hidden</span>
-      </div>
-      <form onSubmit={submitManualTerm} className="mb-3 flex gap-2">
-        <Input
-          value={manualTerm}
-          onChange={(event) => setManualTerm(event.target.value)}
-          placeholder="Add hidden term"
-          className="h-8"
-        />
-        <Button type="submit" size="sm" variant="outline">
-          <Ban className="h-4 w-4" />
-          Hide
-        </Button>
-      </form>
-      <div className="flex flex-wrap gap-2">
-        {terms.length > 0 ? (
-          terms.map((term) => (
-            <span
-              key={term.id}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground"
-            >
-              {term.normalized_term}
-              <button
-                type="button"
-                title={`Remove ${term.normalized_term}`}
-                onClick={() => onRemove(term.normalized_term)}
-                className="text-muted-foreground hover:text-emerald-300"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+        <section className="border border-border bg-muted p-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold">Hidden Terms</span>
+            <span className="text-xs text-muted-foreground">
+              {terms.length} hidden
             </span>
-          ))
-        ) : (
-          <span className="text-sm text-muted-foreground">
-            Click a heatmap term to hide it.
-          </span>
-        )}
-      </div>
-    </section>
+          </div>
+          <form onSubmit={submitManualTerm} className="mb-3 flex gap-2">
+            <Input
+              value={manualTerm}
+              onChange={(event) => setManualTerm(event.target.value)}
+              placeholder="Add hidden term"
+              className="h-8"
+            />
+            <Button type="submit" size="sm" variant="outline">
+              <Ban className="h-4 w-4" />
+              Hide
+            </Button>
+          </form>
+          <div className="max-h-[42vh] overflow-y-auto">
+            <div className="flex flex-wrap gap-2">
+              {terms.length > 0 ? (
+                terms.map((term) => (
+                  <span
+                    key={term.id}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground"
+                  >
+                    {term.normalized_term}
+                    <button
+                      type="button"
+                      title={`Remove ${term.normalized_term}`}
+                      onClick={() => onRemove(term.normalized_term)}
+                      className="text-muted-foreground hover:text-emerald-300"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  Click a heatmap term to hide it.
+                </span>
+              )}
+            </div>
+          </div>
+        </section>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1402,14 +1453,18 @@ function TermCloud({
   terms,
   heat = false,
   hint,
+  action,
   onTermClick,
+  onTermBlacklist,
 }: {
   icon: ReactNode;
   title: string;
   terms: Array<{ value: string; count: number; weight: number; kind?: string }>;
   heat?: boolean;
   hint?: string;
+  action?: ReactNode;
   onTermClick?: (term: { value: string; kind?: string }) => void;
+  onTermBlacklist?: (term: string) => void;
 }) {
   const max = Math.max(...terms.map((term) => term.weight), 1);
 
@@ -1420,18 +1475,21 @@ function TermCloud({
           {icon}
           {title}
         </div>
-        {hint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
+        <div className="flex items-center gap-2">
+          {hint ? (
+            <span className="text-xs text-muted-foreground">{hint}</span>
+          ) : null}
+          {action}
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         {terms.length > 0 ? (
           terms.map((term) => {
             const intensity = Math.max(0.18, term.weight / max);
             return (
-              <button
+              <span
                 key={term.value}
-                type="button"
-                onClick={() => onTermClick?.(term)}
-                className="rounded-md border border-border px-2 py-1 text-xs"
+                className="inline-flex overflow-hidden rounded-md border border-border text-xs"
                 style={
                   heat
                     ? {
@@ -1440,8 +1498,25 @@ function TermCloud({
                     : undefined
                 }
               >
-                {term.value} <span className="text-muted-foreground">{term.count}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onTermClick?.(term)}
+                  className="px-2 py-1 text-left hover:bg-accent"
+                >
+                  {term.value}{" "}
+                  <span className="text-muted-foreground">{term.count}</span>
+                </button>
+                {onTermBlacklist ? (
+                  <button
+                    type="button"
+                    title={`Hide ${term.value}`}
+                    onClick={() => onTermBlacklist(term.value)}
+                    className="border-l border-border px-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </span>
             );
           })
         ) : (
@@ -1473,7 +1548,9 @@ function PostList({
 }) {
   if (posts.length === 0) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">No posts loaded yet.</div>
+      <div className="p-6 text-sm text-muted-foreground">
+        No posts loaded yet.
+      </div>
     );
   }
 
@@ -1521,7 +1598,9 @@ function PostArticle({
     <article
       onMouseEnter={() => onPostRead?.(post)}
       className={`border-b p-4 ${
-        read ? "border-border/80" : "border-amber-700/60 bg-amber-950/30"
+        read
+          ? "border-border/80"
+          : "border-emerald-300 bg-emerald-50/80 dark:border-emerald-700/60 dark:bg-emerald-950/30"
       }`}
     >
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -1537,7 +1616,11 @@ function PostArticle({
         )}
         <span>{new Date(post.posted_at).toLocaleString()}</span>
         <AnalysisBadge state={post.analysis_state} />
-        {!read && <Badge className="bg-amber-500 text-black">new</Badge>}
+        {!read && (
+          <Badge className="bg-emerald-600 text-white dark:bg-emerald-400 dark:text-black">
+            new
+          </Badge>
+        )}
         <a
           href={post.source_url}
           target="_blank"
@@ -1588,8 +1671,8 @@ function PostArticle({
 
 function PostSummary({ summary }: { summary: string }) {
   return (
-    <section className="mt-3 border border-emerald-700/50 bg-card px-3 py-2 text-sm leading-6 text-emerald-100">
-      <div className="mb-1 text-[11px] font-semibold uppercase text-emerald-300">
+    <section className="mt-3 border border-purple-300 bg-purple-50 px-3 py-2 text-sm leading-6 text-purple-950 dark:border-purple-700/60 dark:bg-purple-950/30 dark:text-purple-100">
+      <div className="mb-1 text-[11px] font-semibold uppercase text-purple-700 dark:text-purple-300">
         AI summary
       </div>
       {summary}

@@ -126,7 +126,7 @@ const AI_RUNNING_TIMEOUT_MS = 15 * 60 * 1000;
 export class BizAiService implements OnApplicationShutdown {
   private readonly logger = new Logger(BizAiService.name);
   private readonly model = process.env.OPENAI_ANALYSIS_MODEL || "gpt-5-mini";
-  private readonly analysisVersion = "biz-post-v2";
+  private readonly analysisVersion = "biz-post-v3";
   private readonly batchSize = this.parsePositiveInt(
     process.env.OPENAI_ANALYSIS_BATCH_SIZE,
     60,
@@ -580,7 +580,7 @@ export class BizAiService implements OnApplicationShutdown {
             {
               role: "system",
               content:
-                "You classify anonymous finance forum posts for research organization. Return only structured JSON. Do not give investment advice. Capture uncertainty and mark weak evidence neutral or mixed.",
+                "You classify anonymous finance forum posts for research organization. Return only structured JSON. Do not give investment advice. Treat negative chart, price, setup, candle, or bag language as bearish unless the negativity targets shorts, puts, bears, or a bear thesis. Treat negative language about shorts, puts, bears, or a bear thesis as bullish or mixed. Capture uncertainty and mark weak evidence neutral or mixed.",
             },
             {
               role: "user",
@@ -648,7 +648,7 @@ export class BizAiService implements OnApplicationShutdown {
       "Post text:",
       post.clean_text.slice(0, 4000),
       "",
-      "Classify securities actually discussed in the post. Use ticker symbols when clear. If no market/security discussion is present, market_relevant=false and securities=[].",
+      "Classify securities actually discussed in the post. Use ticker symbols when clear. If no specific security is named but the post clearly evaluates a chart, price, setup, or market direction, classify the post-level sentiment and leave securities=[]. Examples: 'chart looks like dogshit' is bearish; 'shorts are cooked' is bullish; 'bear thesis is dogshit' is bullish or mixed depending on evidence. If no market/security discussion is present, market_relevant=false and securities=[].",
     ].join("\n");
   }
 

@@ -171,7 +171,21 @@
 }
 
 .biz-workspace {
-  /* Always-on green accent palette (works in both light and dark) */
+  /* Financial workspace palette: calm light mode, green accents */
+  --background: #f6f8f7;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --secondary: #eef3f0;
+  --secondary-foreground: #102018;
+  --muted: #edf3ef;
+  --muted-foreground: #52635a;
+  --accent: #dcfce7;
+  --accent-foreground: #064e3b;
+  --border: #d8e2dc;
+  --input: #cbd8d0;
   --accent-1-m: #22c55e;
   --accent-2-m: #14b8a6;
   --gradient-from: #22c55e;
