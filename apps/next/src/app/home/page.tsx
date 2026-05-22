@@ -653,14 +653,10 @@ export default function HomePage() {
   return (
     <div className="biz-workspace min-h-screen bg-background text-foreground">
       <AppNavbar className="border-b border-border bg-background/95 text-foreground" />
-<<<<<<< HEAD
       <div className="pt-16">
         <SourceSwitcher />
       </div>
-      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 pb-8 pt-4">
-=======
-      <main className="mx-auto grid h-screen max-w-[1680px] grid-rows-[auto_minmax(0,1fr)] gap-4 px-4 pb-4 pt-24">
->>>>>>> 9caa62eb796cbdf95fd403640f3461c18c4dd19b
+      <main className="mx-auto grid h-[calc(100vh-7rem)] max-w-[1680px] grid-rows-[auto_minmax(0,1fr)] gap-4 px-4 pb-4 pt-4">
         <section className="grid gap-3 border-b border-border pb-4 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <h1 className="text-2xl font-semibold tracking-normal">
