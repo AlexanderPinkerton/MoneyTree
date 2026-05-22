@@ -1,0 +1,16 @@
+{
+  "name": "@moneytree/prisma",
+  "private": true,
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "generate": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "6.6.0"
+  },
+  "devDependencies": {
+    "prisma": "6.6.0"
+  }
+}

@@ -1,0 +1,386 @@
+# 👑 kingstack
+
+A modern full-stack TypeScript monorepo powered by:
+
+- 🧵 Yarn v4 Workspaces
+- ⚡️ Turborepo (monorepo)
+- ✅ ESLint 9 (shared config)
+- 🧠 NestJS (API backend with Fastify)
+- 🌐 Next.js 15 (frontend & serverless API)
+- 🎨 ShadCN with Tailwind CSS
+- 🧬 Prisma (ORM)
+- ☁️ Supabase (auth + db)
+- 🔄 Socket.io (realtime)
+- 🗄️ MobX + TanStack Query (state management)
+- 🧪 Vitest (testing)
+- 🔨 Bun (local scripts)
+
+---
+
+## 🎯 Why KingStack?
+
+KingStack is designed to solve common pain points in modern full-stack development by providing a **unified, explicit, and powerful** architecture that makes it easy to build production-ready applications.
+
+### The Two-App Architecture
+
+KingStack uses **two main applications** working in harmony:
+
+#### 🌐 Next.js (`apps/next`)
+- **Modern React UI** with Next.js 15, ShadCN UI, and Tailwind CSS
+- **Serverless API routes** for lightweight, scalable endpoints
+- Perfect for: UI rendering, static pages, API routes that don't need persistent connections
+
+#### 🧠 NestJS (`apps/nest`)
+- **Mature API framework** with powerful dependency injection and modular architecture
+- **Persistent backend** for long-running processes
+- Perfect for: WebSockets, cron jobs, background workers, complex business logic
+
+**Why both?** Many projects need both serverless flexibility and persistent backend capabilities. KingStack makes it trivial to use both in unison with:
+- ✅ Shared code (`@moneytree/shared`)
+- ✅ Shared linting (`@moneytree/eslint-config`)
+- ✅ Shared authentication (same JWT across both)
+- ✅ Shared Prisma schema and client
+- ✅ Unified development workflow
+
+### Core Strengths
+
+KingStack excels at making common tasks **easy**:
+
+- ✅ **Easy Frontend** - Modern React/Next.js with ShadCN UI components
+- ✅ **Easy Serverless** - Next.js API routes with zero config
+- ✅ **Easy Dedicated Backend** - NestJS for complex APIs and business logic
+- ✅ **Easy WebSockets** - Socket.io integration with shared auth
+- ✅ **Easy Cron Jobs** - NestJS scheduler for background tasks
+- ✅ **Easy State Management** - MobX + TanStack Query with optimistic updates
+- ✅ **Easy Realtime** - Built-in realtime extensions for stores
+
+📖 **[State Management Architecture →](./docs/state-management/README.md)**
+
+### Tackling Common Annoyances
+
+KingStack takes an **explicit approach** to avoid hidden pitfalls:
+
+#### 🔐 Explicit Configuration Management
+No more guessing which `.env` file is active or dealing with dotenv detection issues. All configuration is organized in `config/` with TypeScript-based generation of both `.env` files and config files.
+
+📖 **[Configuration Management Guide →](./config/readme.md)** (Powered by `@moneytree/config`)
+
+#### 🎫 Explicit JWT Authentication
+No cookie/localStorage magic. Tokens are explicitly passed and validated, making auth predictable and debuggable.
+
+📖 **[Authentication Documentation →](./docs/auth/README.md)**
+
+#### 📜 TypeScript Scripts with Bun
+Write scripts in TypeScript without transpilation headaches. Bun handles execution natively.
+
+📖 **[Scripts & Automation →](./docs/scripts/README.md)**
+
+#### 🚀 GitHub Actions CI/CD
+Automated PR checks and deployments linked to explicit branch names (`development` and `production`).
+
+📖 **[Deployment Guide →](./docs/deployment/README.md)**
+
+#### 📋 Centralized Metadata & SEO
+All metadata, SEO, and PWA configuration in one place. No more scattered meta tags or duplicate configuration.
+
+📖 **[Metadata & SEO Guide →](./docs/metadata/README.md)**
+
+---
+
+## 📁 Folder Structure
+
+```
+kingstack/
+├── apps/
+│   ├── next/                    # Next.js app (frontend + serverless API)
+│   └── nest/                     # NestJS app (API, logic, jobs, realtime)
+├── packages/
+│   ├── advanced-optimistic-store/  # Optimistic updates with MobX + TanStack Query
+│   ├── eslint-config/              # Shared ESLint configuration
+│   ├── prisma/                     # Schema + generated client
+│   ├── shared/                     # Shared TS code (@moneytree/shared)
+│   └── ts-config/                  # Shared TypeScript configuration
+├── scripts/                    # TypeScript scripts (config generation, setup)
+├── config/                     # Configuration management (development/production)
+├── docs/                       # Documentation
+│   ├── auth/                   # Authentication architecture
+│   ├── deployment/            # CI/CD and deployment guides
+│   ├── metadata/               # Metadata, SEO & PWA configuration
+│   └── state-management/       # State management architecture
+├── .yarn/                      # Yarn plugins, version, patches, etc.
+├── .turbo/                     # Turborepo local task cache (gitignored)
+├── .gitignore
+├── .yarnrc.yml                 # Yarn v4 (Berry) config
+├── turbo.jsonc                 # Turborepo pipeline config
+└── README.md
+```
+
+---
+
+## 🔗 Workspace Wiring
+
+### 🧵 Yarn Workspaces
+- Defined in root `package.json`
+- Hoisted deps, deduped installs
+- Example:
+  ```bash
+  yarn workspace @moneytree/next dev
+  yarn workspace @moneytree/prisma prisma generate
+  ```
+
+### ⚡️ Turborepo Pipelines
+- Defined in `turbo.jsonc`
+- Handles `dev`, `build`, `lint`, `test` across all workspaces
+- Automatically builds dependencies (e.g., `@moneytree/shared` and Prisma client before dev)
+- Example:
+  ```bash
+  yarn dev       # Starts next + nest
+  yarn build     # Builds all packages
+  yarn lint      # Lints everything
+  yarn test      # Runs tests across all workspaces
+  ```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Node.js 20+** - For running the applications
+- **Yarn 4** - Package manager (comes with the repo)
+- **Bun** - For running TypeScript scripts
+- **Supabase CLI** (optional) - For local Supabase development
+
+### Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/kingstack.git
+   cd kingstack
+   ```
+
+2. **Install dependencies**
+   ```bash
+   yarn install
+   ```
+
+3. **Set up configuration**
+   ```bash
+   # Copy the example configuration
+   cp config/example.ts config/local.ts
+   
+   # Edit config/local.ts with your values
+   # (For local development, the defaults usually work fine)
+   ```
+
+4. **Generate environment files**
+   ```bash
+   yarn env:local
+   ```
+   
+   This generates:
+   - `.env` files for Next.js, NestJS, and Prisma
+   - Updates `supabase/config.toml` with your port configuration
+
+5. **Start Supabase (optional)**
+   ```bash
+   yarn supabase:start
+   ```
+   
+   Or skip this step and use playground mode:
+   ```bash
+   yarn env:playground
+   ```
+
+6. **Generate Prisma client**
+   ```bash
+   yarn prisma:generate
+   ```
+
+7. **Start development servers**
+   ```bash
+   yarn dev
+   ```
+   
+   This starts:
+   - Next.js on `http://localhost:3069`
+   - NestJS API on `http://localhost:3420`
+
+### Next Steps
+
+- 📖 Read the [Configuration Guide](./config/readme.md) to understand the config system
+- 🎨 Explore the [State Management Architecture](./docs/state-management/README.md)
+- 🔐 Learn about [Authentication](./docs/auth/README.md)
+- 🚀 Check out [Deployment](./docs/deployment/README.md)
+
+---
+
+## 🗄️ Database & ORM
+
+KingStack is **designed to use Supabase** as the database backend and authentication provider. Prisma is used as the ORM layer to make schema modeling, migrations, and querying easy and type-safe.
+
+### Supabase + Prisma Architecture
+
+**Supabase** provides:
+- ☁️ **PostgreSQL database** - Managed Postgres with connection pooling
+- 🔐 **Authentication** - Built-in auth with JWT tokens
+- 🔄 **Realtime** - Database change subscriptions (optional)
+
+**Prisma** provides:
+- 📐 **Schema modeling** - Type-safe schema definitions
+- 🔄 **Migrations** - Version-controlled database changes
+- 🔍 **Type-safe queries** - Generated TypeScript client
+- 🛠️ **Developer experience** - Great tooling and IntelliSense
+
+### Configuration
+
+Supabase is configured by populating the relevant environment variables in your secrets configuration:
+
+```env
+# Database connections
+SUPABASE_DB_POOL_URL=postgresql://...
+SUPABASE_DB_DIRECT_URL=postgresql://...
+
+# Supabase API
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# JWT secret for token validation
+SUPA_JWT_SECRET=your-jwt-secret
+```
+
+📖 **[Configuration Management Guide →](./config/readme.md)**
+
+### Prisma Usage
+
+**Schema location:** `packages/prisma/schema.prisma`
+
+**Import Prisma Client:**
+```ts
+import { PrismaClient } from "@prisma/client" // works everywhere
+```
+
+**Commands:**
+```bash
+yarn prisma:generate    # Generate Prisma client
+yarn prisma:migrate     # Run migrations
+# Or using workspace directly:
+yarn workspace @moneytree/prisma prisma generate
+yarn workspace @moneytree/prisma prisma migrate dev
+```
+
+### Playground Mode
+
+The stack can be used **without a Supabase backend** via Playground mode for:
+- 🎨 **Vibe coding** - Quick prototyping without setup
+- 🖼️ **Frontend development** - UI work with mock data
+- 💻 **Local apps** - Apps that don't need a database
+
+```bash
+yarn env:playground
+yarn dev
+```
+
+Playground mode uses mock data and doesn't require Supabase configuration.
+
+---
+
+## 🛊 Local Development
+
+### Start Dev Servers
+```bash
+yarn dev
+```
+This runs both Next.js (port 3069) and NestJS in parallel.
+
+### 🎮 Playground Mode
+For UI development and demos without Supabase:
+```bash
+yarn env:playground
+yarn dev
+```
+This runs KingStack with mock data - perfect for UI development and demos!
+
+### Environment Management
+```bash
+yarn env:local          # Generate config for local environment
+yarn env:development    # Generate config for development environment
+yarn env:production     # Generate config for production environment
+yarn env:playground     # Setup playground mode (mock data)
+```
+
+Each command generates:
+- `.env` files for all projects
+- Updates `supabase/config.toml` with ports and project_id
+
+### Run Individual App
+```bash
+yarn workspace @moneytree/next dev    # Next.js on port 3069
+yarn workspace @moneytree/nest dev    # NestJS API
+```
+
+### Docker Commands
+```bash
+yarn docker:build-nest      # Build NestJS Docker image
+yarn docker:run-nest        # Run NestJS container
+yarn docker:compose         # Start all services via docker-compose
+yarn docker:compose:down    # Stop docker-compose services
+```
+
+### Supabase Management
+```bash
+yarn supabase:start      # Start local Supabase instance
+yarn supabase:stop       # Stop local Supabase instance
+yarn supabase:status     # Check Supabase status and connection info
+yarn supabase:list       # List all running Supabase instances (all projects)
+yarn supabase:check      # Verify Supabase configuration
+yarn supabase:reset      # Reset database (drops data, re-runs migrations)
+yarn shadow:start        # Start Supabase shadow DB (minimal services)
+yarn shadow:stop         # Stop shadow DB
+```
+
+📖 **[Multi-Project Setup Guide →](./docs/supabase/multi-project-setup.md)**
+
+---
+
+## Deployments
+
+### NextJS App
+- Ensure the vercel cli is installed and authenticated
+- Run `vercel` command and follow prompts to deploy
+- When it asks "In which directory is your code located?" you can either hit enter (./) or specify ./apps/next
+  - Enter will use the root vercel.json
+  - Specifying will use the one in the next folder.
+- To enable auto-deployments, you need to add vercel details to github action secrets
+  - VERCEL_PROJECT_ID - Get this from the project vercel generated on step 1
+  - VERCEL_TOKEN - Create one from your Vercel account settings -> Tokens
+  - VERCEL_ORG_ID - This is your "Team ID" which you can get from your team settings.
+  - Code pushed to main will be deployed to production, all other branches will go to preview
+
+## 🧠 Points of Interest
+
+### 🔄 Supabase Auth Sync
+
+- A Supabase **trigger** automatically syncs users from the `auth.users` (managed by Supabase) table into the `public.user` table (managed by Prisma).
+- This ensures internal application logic can use a fully controlled `user` model while still leveraging Supabase Auth.
+- This trigger will be automatically installed when running the migrations via `20250921183730_essentials`
+- Any new required fields added to the `user` model will require a new migration which updates the trigger to handle the new fields.
+- 🔥 Failing to update the trigger when modifying `user` **will** break authentication and signup flows.
+- Existing Supabase users which "missed the boat" can be copied over with the `backfill-user-data.ts` script.
+- Ensure the trigger is installed and working before running any backfills or jobs that interact with `user`.
+```bash
+bun run apps/nest/src/scripts/backfill-user-data.ts
+```
+
+### 📦 Packages
+
+- **`@moneytree/shared`** (in `packages/shared/`): Shared TypeScript types and utilities used by both Next.js and NestJS
+- **`@moneytree/advanced-optimistic-store`**: Framework-agnostic optimistic updates with MobX + TanStack Query Core + optional realtime
+- **`@moneytree/eslint-config`**: Shared ESLint configuration for consistent code quality
+- **`@moneytree/ts-config`**: Shared TypeScript configuration
+- **`@moneytree/prisma`**: Prisma schema and migrations
+
+---
+
+🌟 Let the kingdom reign. Long live the stack!

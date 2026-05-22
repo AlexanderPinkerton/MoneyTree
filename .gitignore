@@ -1,0 +1,64 @@
+# Yarn v3+ (Berry)
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# DO NOT ignore these
+!.yarn/releases
+!.yarn/plugins
+!.yarn/patches
+!.yarn/versions
+
+# Standard stuff
+node_modules/
+
+# env files at any level
+.env
+.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.docker
+.env.nest
+
+**/.env.*
+
+# Configuration: ignore environment-specific value files
+config/local.ts
+config/development.ts
+config/production.ts
+
+# Keep these checked in:
+# - config/schema.ts (schema definition)
+# - config/utils.ts (utility functions)
+# - config/example.ts (example values)
+# - config/playground.ts (safe mock data)
+# - config/_example/ (legacy example files)
+
+!config/_example/**
+
+# Config file backups
+*.toml.previous
+*.json.previous
+*.yaml.previous
+
+# Turbo
+.turbo/
+
+# Bun 
+.bun/
+
+# Mac OS
+.DS_Store
+
+# NextJS
+.next/
+
+# NestJS Dist
+dist/
+
+# TypeScript build info
+*.tsbuildinfo
+.vercel

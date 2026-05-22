@@ -1,0 +1,16 @@
+{
+    "extends": [
+        "//"
+    ],
+    "tasks": {
+        "start:prod": {},
+        "build": {
+            "outputs": [
+                "dist/**"
+            ],
+            "dependsOn": [
+                "@moneytree/prisma#generate"
+            ]
+        }
+    }
+}

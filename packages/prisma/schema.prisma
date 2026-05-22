@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("SUPABASE_DB_POOL_URL")
+  directUrl         = env("SUPABASE_DB_DIRECT_URL")
+  shadowDatabaseUrl = env("SUPABASE_DB_SHADOW_URL")
+}
+
+// 🔥 Golden Rules:
+// ❗ Never add a non-nullable field without a default to a table that is inserted into by triggers.
+// ❗ Never use capital letters ANYWHERE if you are using supabase or postgres...torment will follow
+
+// ❗❗❗ IMPORTANT ❗❗❗
+// Always update the 'handle_new_user' trigger via a new migration if you change the required fields for the user model.
+// ❗❗❗ Not doing this will BREAK ALL AUTH FOR THE APP ❗❗❗ 
+model user {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  username            String    @unique @db.VarChar(40)
+  username_changed_at DateTime?
+  previous_usernames  String[]
+  posts               post[]
+  todos               todo[]
+  created_at          DateTime  @default(now())
+}
+
+model post {
+  id         String   @id @default(cuid())
+  title      String
+  content    String?
+  published  Boolean  @default(false)
+  author_id  String
+  author     user     @relation(fields: [author_id], references: [id])
+  created_at DateTime @default(now())
+}
+
+model todo {
+  id         String   @id @default(cuid())
+  title      String
+  done       Boolean  @default(false)
+  user_id    String
+  user       user     @relation(fields: [user_id], references: [id])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model test {
+  id         String   @id @default(cuid())
+  name       String
+  created_at DateTime @default(now())
+}
+
+model checkbox {
+  id         String   @id @default(cuid())
+  index      Int      @unique // 0-199 for 200 checkboxes
+  checked    Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model admin_emails {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  created_at DateTime @default(now())
+}
+
+model biz_ingest_run {
+  id              String    @id @default(cuid())
+  status          String
+  started_at      DateTime  @default(now())
+  finished_at     DateTime?
+  catalog_threads Int       @default(0)
+  threads_planned Int       @default(0)
+  threads_checked Int       @default(0)
+  threads_changed Int       @default(0)
+  new_threads     Int       @default(0)
+  new_posts       Int       @default(0)
+  updated_posts   Int       @default(0)
+  error_count     Int       @default(0)
+  error_message   String?
+  created_at      DateTime  @default(now())
+}
+
+model biz_fetch_state {
+  id                   String    @id @default(cuid())
+  resource_key         String    @unique
+  resource_url         String
+  last_modified_header String?
+  last_checked_at      DateTime?
+  last_success_at      DateTime?
+  last_error_at        DateTime?
+  last_error_message   String?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+}
+
+model biz_thread {
+  id            String     @id @default(cuid())
+  board         String     @default("biz")
+  thread_no     Int        @unique
+  subject       String?
+  semantic_url  String?
+  source_url    String
+  replies       Int        @default(0)
+  images        Int        @default(0)
+  sticky        Boolean    @default(false)
+  closed        Boolean    @default(false)
+  active        Boolean    @default(true)
+  archived      Boolean    @default(false)
+  last_modified DateTime?
+  first_seen_at DateTime   @default(now())
+  last_seen_at  DateTime   @default(now())
+  posts         biz_post[]
+
+  @@index([last_seen_at])
+  @@index([last_modified])
+}
+
+model biz_post {
+  id                String                 @id @default(cuid())
+  board             String                 @default("biz")
+  post_no           Int                    @unique
+  thread_no         Int
+  thread            biz_thread             @relation(fields: [thread_no], references: [thread_no], onDelete: Cascade)
+  is_op             Boolean                @default(false)
+  subject           String?
+  author_name       String?
+  poster_id         String?
+  posted_at         DateTime
+  source_url        String
+  raw_comment_html  String?
+  clean_text        String
+  raw_json          Json
+  attachment        Json?
+  analysis_state    String                 @default("raw")
+  triaged_at        DateTime?
+  ai_analyzed_at    DateTime?
+  analysis_model    String?
+  analysis_version  String?
+  analysis_error    String?
+  analyzed_at       DateTime?
+  first_seen_at     DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+  tags              biz_post_tag[]
+  security_mentions biz_security_mention[]
+  analysis_jobs     biz_analysis_job[]
+
+  @@index([thread_no])
+  @@index([posted_at])
+  @@index([first_seen_at])
+  @@index([analysis_state])
+}
+
+model biz_analysis_job {
+  id            String    @id @default(cuid())
+  stage         String
+  status        String
+  target_type   String
+  post_id       String?
+  post          biz_post? @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  thread_no     Int?
+  attempts      Int       @default(0)
+  error_message String?
+  started_at    DateTime?
+  finished_at   DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@index([status, stage])
+  @@index([post_id])
+  @@index([thread_no])
+}
+
+model biz_post_tag {
+  id         String   @id @default(cuid())
+  post_id    String
+  post       biz_post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  tag_type   String
+  value      String
+  confidence Float    @default(1)
+  source     String
+  created_at DateTime @default(now())
+
+  @@unique([post_id, tag_type, value, source])
+  @@index([tag_type, value])
+}
+
+model biz_security_mention {
+  id               String   @id @default(cuid())
+  post_id          String
+  post             biz_post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  thread_no        Int
+  symbol           String
+  display_name     String?
+  asset_type       String?
+  sentiment        String
+  stance           String
+  confidence       Float    @default(0.5)
+  evidence_snippet String?
+  source           String
+  created_at       DateTime @default(now())
+
+  @@unique([post_id, symbol, source])
+  @@index([symbol])
+  @@index([stance])
+  @@index([sentiment])
+  @@index([thread_no])
+}

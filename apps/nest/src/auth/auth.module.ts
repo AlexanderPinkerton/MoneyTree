@@ -1,0 +1,30 @@
+import { Module } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { PassportModule } from "@nestjs/passport";
+import { JwtModule } from "@nestjs/jwt";
+import { JwtAuthGuard } from "./guards/jwt.auth.guard";
+import { AdminGuard } from "./guards/admin.guard";
+import { AdminService } from "./services/admin.service";
+import { SupabaseStrategy } from "./strategies/supabase.strategy";
+import { AdminEmailsController } from "./admin-emails.controller";
+
+@Module({
+  imports: [
+    PassportModule,
+    ConfigModule,
+    JwtModule.registerAsync({
+      useFactory: (configService: ConfigService) => {
+        return {
+          global: true,
+          secret: configService.get<string>("SUPA_JWT_SECRET"),
+          signOptions: { expiresIn: 40000 },
+        };
+      },
+      inject: [ConfigService],
+    }),
+  ],
+  controllers: [AdminEmailsController],
+  providers: [JwtAuthGuard, AdminGuard, AdminService, SupabaseStrategy],
+  exports: [JwtAuthGuard, AdminGuard, AdminService, JwtModule],
+})
+export class AuthModule {}

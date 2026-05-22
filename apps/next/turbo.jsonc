@@ -1,0 +1,17 @@
+{
+    "extends": [
+        "//"
+    ],
+    "tasks": {
+        "build": {
+            "outputs": [
+                ".next/**"
+            ],
+            "dependsOn": [
+                "@moneytree/prisma#generate",
+                "@moneytree/shared#build",
+                "@moneytree/advanced-optimistic-store#build"
+            ]
+        }
+    }
+}

@@ -1,0 +1,10 @@
+services:
+  nest: # nestjs
+    build:
+      context: .
+      dockerfile: apps/nest/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - apps/nest/.env
+    restart: unless-stopped

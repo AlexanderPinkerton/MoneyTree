@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "dependsOn": [
+        "@moneytree/shared#build",
+        "@moneytree/prisma#generate",
+        "@moneytree/advanced-optimistic-store#build"
+      ],
+      "outputs": []
+    },
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "dist/**"
+      ]
+    },
+    "start": {
+      "cache": false,
+      "dependsOn": [
+        "build"
+      ]
+    },
+    "lint": {
+      "cache": false
+    },
+    "test": {
+      "cache": false,
+      "dependsOn": [
+        "^build"
+      ]
+    }
+  }
+}
