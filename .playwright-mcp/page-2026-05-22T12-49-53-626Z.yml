@@ -1,0 +1,135 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e5]:
+        - link "Go to home page" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e8]: MoneyTree
+        - generic [ref=e10]:
+          - button "Switch to light mode" [pressed] [ref=e12]:
+            - img [ref=e13]
+          - button "Login" [ref=e20]
+    - main [ref=e21]:
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - heading "Financial Signal Workspace" [level=1] [ref=e24]
+          - paragraph [ref=e25]: "Source: 4chan /biz/. Analysis labels are machine-generated and are not investment advice."
+        - generic [ref=e26]:
+          - button "Thread" [ref=e27]
+          - button "Feed" [ref=e28]
+          - button "Corpus" [ref=e29]
+          - generic [ref=e30]: No ingest run
+          - button "Refresh" [ref=e32]:
+            - img
+            - text: Refresh
+          - button "Run Ingest" [ref=e33]:
+            - img
+            - text: Run Ingest
+      - generic [ref=e34]:
+        - complementary [ref=e35]:
+          - generic [ref=e37]:
+            - img [ref=e38]
+            - text: Threads
+        - generic [ref=e40]:
+          - generic [ref=e42]:
+            - img [ref=e43]
+            - text: Thread
+          - generic [ref=e46]:
+            - textbox "Filter this thread" [ref=e47]
+            - button "Local Filter" [ref=e48]:
+              - img
+              - text: Local Filter
+          - generic [ref=e49]: No posts loaded yet.
+        - complementary [ref=e50]:
+          - generic [ref=e51]:
+            - generic [ref=e53]:
+              - img [ref=e54]
+              - text: Security Summary
+            - generic [ref=e57]:
+              - generic [ref=e58]:
+                - textbox "Ticker or crypto symbol" [ref=e59]
+                - button "Analyze" [ref=e60]
+              - paragraph [ref=e61]: Enter a symbol to collect related /biz/ posts and summarize the bullish and bearish case.
+          - generic [ref=e62]:
+            - generic [ref=e64]:
+              - img [ref=e65]
+              - text: Ingest
+            - generic [ref=e68]:
+              - generic [ref=e69]: Waiting for live ingest events
+              - generic [ref=e70]:
+                - generic [ref=e71]: Threads
+                - generic [ref=e72]: "0"
+              - generic [ref=e73]:
+                - generic [ref=e74]: Scraped posts
+                - generic [ref=e75]: "0"
+              - generic [ref=e76]:
+                - generic [ref=e77]: Triage queue
+                - generic [ref=e78]: "0"
+              - generic [ref=e79]:
+                - generic [ref=e80]: Triaged posts
+                - generic [ref=e81]: "0"
+              - generic [ref=e82]:
+                - generic [ref=e83]: Latest post
+                - generic [ref=e84]: none
+              - generic [ref=e85]:
+                - generic [ref=e86]: Progress Log
+                - generic [ref=e88]: No progress events yet.
+          - generic [ref=e89]:
+            - generic [ref=e91]:
+              - img [ref=e92]
+              - text: Analysis
+            - generic [ref=e94]:
+              - generic [ref=e95]:
+                - generic [ref=e96]:
+                  - generic [ref=e97]: Analysis status unavailable
+                  - generic [ref=e98]: 0%
+                - generic [ref=e100]:
+                  - generic [ref=e101]: 0/? posts analyzed
+                  - generic [ref=e102]: idle
+                  - generic [ref=e103]: 0 triage backlog
+                  - generic [ref=e104]: 0 AI backlog
+                  - generic [ref=e105]: 0 failed
+                  - generic [ref=e106]: 0 AI workers
+              - generic [ref=e107]:
+                - button "Start" [disabled]
+                - button "Pause" [ref=e108]
+                - button "Resume" [disabled]
+              - generic [ref=e109]:
+                - generic [ref=e110]: AI status
+                - generic [ref=e111]: missing key
+              - generic [ref=e112]:
+                - generic [ref=e113]: AI candidate posts
+                - generic [ref=e114]: "0"
+              - generic [ref=e115]:
+                - generic [ref=e116]: AI analyzed posts
+                - generic [ref=e117]: "0"
+              - generic [ref=e118]:
+                - generic [ref=e119]: Queued triage
+                - generic [ref=e120]: "0"
+              - generic [ref=e121]:
+                - generic [ref=e122]: Running triage
+                - generic [ref=e123]: "0"
+              - generic [ref=e124]:
+                - generic [ref=e125]: Queued AI
+                - generic [ref=e126]: "0"
+              - generic [ref=e127]:
+                - generic [ref=e128]: Running AI
+                - generic [ref=e129]: "0"
+              - generic [ref=e130]:
+                - generic [ref=e131]: AI backlog
+                - generic [ref=e132]: "0"
+              - generic [ref=e133]:
+                - generic [ref=e134]: Failed triage
+                - generic [ref=e135]: "0"
+              - generic [ref=e136]:
+                - generic [ref=e137]: Failed AI
+                - generic [ref=e138]: "0"
+              - generic [ref=e139]:
+                - generic [ref=e140]: AI concurrency
+                - generic [ref=e141]: "0"
+              - generic [ref=e142]:
+                - generic [ref=e143]: Triage concurrency
+                - generic [ref=e144]: "0"
+  - button "Open Next.js Dev Tools" [ref=e150] [cursor=pointer]:
+    - img [ref=e151]
+  - alert [ref=e154]

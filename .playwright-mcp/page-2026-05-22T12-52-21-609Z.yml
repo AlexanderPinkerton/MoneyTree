@@ -1,0 +1,905 @@
+- generic [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e150] [cursor=pointer]:
+    - img [ref=e151]
+  - alert [ref=e154]: MoneyTree | KingStack
+  - generic [ref=e194]:
+    - navigation [ref=e195]:
+      - generic [ref=e197]:
+        - link "Go to home page" [ref=e199] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e200]: MoneyTree
+        - generic [ref=e202]:
+          - button "Switch to dark mode" [active] [ref=e1189]:
+            - img [ref=e1190]
+          - button "T" [ref=e212]:
+            - generic [ref=e214]: T
+    - main [ref=e215]:
+      - generic [ref=e216]:
+        - generic [ref=e217]:
+          - heading "Financial Signal Workspace" [level=1] [ref=e218]
+          - paragraph [ref=e219]: "Source: 4chan /biz/. Analysis labels are machine-generated and are not investment advice."
+        - generic [ref=e220]:
+          - button "Thread" [ref=e221]
+          - button "Feed" [ref=e222]
+          - button "Corpus" [ref=e223]
+          - generic [ref=e224]: completed 8:50:14 AM
+          - button "Refresh" [ref=e226]:
+            - img
+            - text: Refresh
+          - button "Run Ingest" [ref=e227]:
+            - img
+            - text: Run Ingest
+      - generic [ref=e228]:
+        - complementary [ref=e229]:
+          - generic [ref=e231]:
+            - img [ref=e232]
+            - text: Threads
+          - generic [ref=e234]:
+            - button "No. 60278989 2 posts new business.jpg Welcome to /biz/ - Business &amp; Finance active sticky closed" [ref=e235] [cursor=pointer]:
+              - generic [ref=e236]:
+                - generic [ref=e237]: No. 60278989
+                - generic [ref=e238]: 2 posts
+              - generic [ref=e239]: new
+              - button "business.jpg" [ref=e240]:
+                - img "business.jpg" [ref=e241]
+              - generic [ref=e242]: Welcome to /biz/ - Business &amp; Finance
+              - generic [ref=e243]:
+                - generic [ref=e244]: active
+                - generic [ref=e245]: sticky
+                - generic [ref=e246]: closed
+            - button "No. 62260764 348 posts new 1777989491779.jpg /smg/ – stock market general active" [ref=e247] [cursor=pointer]:
+              - generic [ref=e248]:
+                - generic [ref=e249]: No. 62260764
+                - generic [ref=e250]: 348 posts
+              - generic [ref=e251]: new
+              - button "1777989491779.jpg" [ref=e252]:
+                - img "1777989491779.jpg" [ref=e253]
+              - generic [ref=e254]: /smg/ – stock market general
+              - generic [ref=e256]: active
+            - button "No. 62260362 70 posts new huntbrothershand.jpg /pmg/ - Precious Metals General active" [ref=e257] [cursor=pointer]:
+              - generic [ref=e258]:
+                - generic [ref=e259]: No. 62260362
+                - generic [ref=e260]: 70 posts
+              - generic [ref=e261]: new
+              - button "huntbrothershand.jpg" [ref=e262]:
+                - img "huntbrothershand.jpg" [ref=e263]
+              - generic [ref=e264]: /pmg/ - Precious Metals General
+              - generic [ref=e266]: active
+            - button "No. 62251183 39 posts new 1779199138542581.jpg The boomer ponziconomy of the 20th century is over active" [ref=e267] [cursor=pointer]:
+              - generic [ref=e268]:
+                - generic [ref=e269]: No. 62251183
+                - generic [ref=e270]: 39 posts
+              - generic [ref=e271]: new
+              - button "1779199138542581.jpg" [ref=e272]:
+                - img "1779199138542581.jpg" [ref=e273]
+              - generic [ref=e274]: The boomer ponziconomy of the 20th century is over
+              - generic [ref=e276]: active
+            - button "No. 62261925 1 posts new maths.jpg Untitled thread active" [ref=e277] [cursor=pointer]:
+              - generic [ref=e278]:
+                - generic [ref=e279]: No. 62261925
+                - generic [ref=e280]: 1 posts
+              - generic [ref=e281]: new
+              - button "maths.jpg" [ref=e282]:
+                - img "maths.jpg" [ref=e283]
+              - generic [ref=e284]: Untitled thread
+              - generic [ref=e286]: active
+            - button "No. 62261821 10 posts new SCREAMING BOOMER.png Untitled thread active" [ref=e287] [cursor=pointer]:
+              - generic [ref=e288]:
+                - generic [ref=e289]: No. 62261821
+                - generic [ref=e290]: 10 posts
+              - generic [ref=e291]: new
+              - button "SCREAMING BOOMER.png" [ref=e292]:
+                - img "SCREAMING BOOMER.png" [ref=e293]
+              - generic [ref=e294]: Untitled thread
+              - generic [ref=e296]: active
+            - button "No. 62261880 2 posts new 44a4d5897cd5261c725ab3798d5ad11b94afc2e6a65966138f05445b7e4fd85c.jpg Untitled thread active" [ref=e297] [cursor=pointer]:
+              - generic [ref=e298]:
+                - generic [ref=e299]: No. 62261880
+                - generic [ref=e300]: 2 posts
+              - generic [ref=e301]: new
+              - button "44a4d5897cd5261c725ab3798d5ad11b94afc2e6a65966138f05445b7e4fd85c.jpg" [ref=e302]:
+                - img "44a4d5897cd5261c725ab3798d5ad11b94afc2e6a65966138f05445b7e4fd85c.jpg" [ref=e303]
+              - generic [ref=e304]: Untitled thread
+              - generic [ref=e306]: active
+            - button "No. 62261916 2 posts new 1649234029637205.jpg Untitled thread active" [ref=e307] [cursor=pointer]:
+              - generic [ref=e308]:
+                - generic [ref=e309]: No. 62261916
+                - generic [ref=e310]: 2 posts
+              - generic [ref=e311]: new
+              - button "1649234029637205.jpg" [ref=e312]:
+                - img "1649234029637205.jpg" [ref=e313]
+              - generic [ref=e314]: Untitled thread
+              - generic [ref=e316]: active
+            - button "No. 62259914 5 posts new FUCK MY NIGGER LIFE.jpg Untitled thread active" [ref=e317] [cursor=pointer]:
+              - generic [ref=e318]:
+                - generic [ref=e319]: No. 62259914
+                - generic [ref=e320]: 5 posts
+              - generic [ref=e321]: new
+              - button "FUCK MY NIGGER LIFE.jpg" [ref=e322]:
+                - img "FUCK MY NIGGER LIFE.jpg" [ref=e323]
+              - generic [ref=e324]: Untitled thread
+              - generic [ref=e326]: active
+            - button "No. 62260586 44 posts new 1755600541590525.png Untitled thread active" [ref=e327] [cursor=pointer]:
+              - generic [ref=e328]:
+                - generic [ref=e329]: No. 62260586
+                - generic [ref=e330]: 44 posts
+              - generic [ref=e331]: new
+              - button "1755600541590525.png" [ref=e332]:
+                - img "1755600541590525.png" [ref=e333]
+              - generic [ref=e334]: Untitled thread
+              - generic [ref=e336]: active
+            - button "No. 62261912 11 posts new w8n.png /smg/ - stock market general active" [ref=e337] [cursor=pointer]:
+              - generic [ref=e338]:
+                - generic [ref=e339]: No. 62261912
+                - generic [ref=e340]: 11 posts
+              - generic [ref=e341]: new
+              - button "w8n.png" [ref=e342]:
+                - img "w8n.png" [ref=e343]
+              - generic [ref=e344]: /smg/ - stock market general
+              - generic [ref=e346]: active
+            - button "No. 62259698 19 posts new IMG_1526.jpg Untitled thread active" [ref=e347] [cursor=pointer]:
+              - generic [ref=e348]:
+                - generic [ref=e349]: No. 62259698
+                - generic [ref=e350]: 19 posts
+              - generic [ref=e351]: new
+              - button "IMG_1526.jpg" [ref=e352]:
+                - img "IMG_1526.jpg" [ref=e353]
+              - generic [ref=e354]: Untitled thread
+              - generic [ref=e356]: active
+            - button "No. 62247753 31 posts new IMG_4569.jpg Untitled thread active" [ref=e357] [cursor=pointer]:
+              - generic [ref=e358]:
+                - generic [ref=e359]: No. 62247753
+                - generic [ref=e360]: 31 posts
+              - generic [ref=e361]: new
+              - button "IMG_4569.jpg" [ref=e362]:
+                - img "IMG_4569.jpg" [ref=e363]
+              - generic [ref=e364]: Untitled thread
+              - generic [ref=e366]: active
+            - button "No. 62246374 121 posts new Screenshot 2026-05-18 135344.png Untitled thread active" [ref=e367] [cursor=pointer]:
+              - generic [ref=e368]:
+                - generic [ref=e369]: No. 62246374
+                - generic [ref=e370]: 121 posts
+              - generic [ref=e371]: new
+              - button "Screenshot 2026-05-18 135344.png" [ref=e372]:
+                - img "Screenshot 2026-05-18 135344.png" [ref=e373]
+              - generic [ref=e374]: Untitled thread
+              - generic [ref=e376]: active
+            - button "No. 62237336 134 posts new 9385838.png Untitled thread active" [ref=e377] [cursor=pointer]:
+              - generic [ref=e378]:
+                - generic [ref=e379]: No. 62237336
+                - generic [ref=e380]: 134 posts
+              - generic [ref=e381]: new
+              - button "9385838.png" [ref=e382]:
+                - img "9385838.png" [ref=e383]
+              - generic [ref=e384]: Untitled thread
+              - generic [ref=e386]: active
+            - button "No. 62174854 206 posts new 1761927155591272.jpg /XMR/ Monero General active" [ref=e387] [cursor=pointer]:
+              - generic [ref=e388]:
+                - generic [ref=e389]: No. 62174854
+                - generic [ref=e390]: 206 posts
+              - generic [ref=e391]: new
+              - button "1761927155591272.jpg" [ref=e392]:
+                - img "1761927155591272.jpg" [ref=e393]
+              - generic [ref=e394]: /XMR/ Monero General
+              - generic [ref=e396]: active
+            - button "No. 62234351 79 posts new 0B6F21BF09342BA30B86903917DF730B.jpg If you invest into the index funds for 45 years then you&#039;ll be rich active" [ref=e397] [cursor=pointer]:
+              - generic [ref=e398]:
+                - generic [ref=e399]: No. 62234351
+                - generic [ref=e400]: 79 posts
+              - generic [ref=e401]: new
+              - button "0B6F21BF09342BA30B86903917DF730B.jpg" [ref=e402]:
+                - img "0B6F21BF09342BA30B86903917DF730B.jpg" [ref=e403]
+              - generic [ref=e404]: If you invest into the index funds for 45 years then you&#039;ll be rich
+              - generic [ref=e406]: active
+            - button "No. 62258598 7 posts new sergayyyy.jpg Untitled thread active" [ref=e407] [cursor=pointer]:
+              - generic [ref=e408]:
+                - generic [ref=e409]: No. 62258598
+                - generic [ref=e410]: 7 posts
+              - generic [ref=e411]: new
+              - button "sergayyyy.jpg" [ref=e412]:
+                - img "sergayyyy.jpg" [ref=e413]
+              - generic [ref=e414]: Untitled thread
+              - generic [ref=e416]: active
+            - button "No. 62258617 21 posts new 1779371562059034.png Untitled thread active" [ref=e417] [cursor=pointer]:
+              - generic [ref=e418]:
+                - generic [ref=e419]: No. 62258617
+                - generic [ref=e420]: 21 posts
+              - generic [ref=e421]: new
+              - button "1779371562059034.png" [ref=e422]:
+                - img "1779371562059034.png" [ref=e423]
+              - generic [ref=e424]: Untitled thread
+              - generic [ref=e426]: active
+            - button "No. 62242628 90 posts new 1763041450093.jpg Hyperwinning active" [ref=e427] [cursor=pointer]:
+              - generic [ref=e428]:
+                - generic [ref=e429]: No. 62242628
+                - generic [ref=e430]: 90 posts
+              - generic [ref=e431]: new
+              - button "1763041450093.jpg" [ref=e432]:
+                - img "1763041450093.jpg" [ref=e433]
+              - generic [ref=e434]: Hyperwinning
+              - generic [ref=e436]: active
+            - button "No. 62255851 18 posts new 1776806235849063.png Untitled thread active" [ref=e437] [cursor=pointer]:
+              - generic [ref=e438]:
+                - generic [ref=e439]: No. 62255851
+                - generic [ref=e440]: 18 posts
+              - generic [ref=e441]: new
+              - button "1776806235849063.png" [ref=e442]:
+                - img "1776806235849063.png" [ref=e443]
+              - generic [ref=e444]: Untitled thread
+              - generic [ref=e446]: active
+            - button "No. 62233513 26 posts new pepe-vegas-1742276673363305.jpg /poly/ - Polymarket General active" [ref=e447] [cursor=pointer]:
+              - generic [ref=e448]:
+                - generic [ref=e449]: No. 62233513
+                - generic [ref=e450]: 26 posts
+              - generic [ref=e451]: new
+              - button "pepe-vegas-1742276673363305.jpg" [ref=e452]:
+                - img "pepe-vegas-1742276673363305.jpg" [ref=e453]
+              - generic [ref=e454]: /poly/ - Polymarket General
+              - generic [ref=e456]: active
+            - button "No. 62245741 72 posts new images (59).png HODL and buy more BTC. active" [ref=e457] [cursor=pointer]:
+              - generic [ref=e458]:
+                - generic [ref=e459]: No. 62245741
+                - generic [ref=e460]: 72 posts
+              - generic [ref=e461]: new
+              - button "images (59).png" [ref=e462]:
+                - img "images (59).png" [ref=e463]
+              - generic [ref=e464]: HODL and buy more BTC.
+              - generic [ref=e466]: active
+            - button "No. 62251747 26 posts new shrimp farming in Germany.png Shrimp farming active" [ref=e467] [cursor=pointer]:
+              - generic [ref=e468]:
+                - generic [ref=e469]: No. 62251747
+                - generic [ref=e470]: 26 posts
+              - generic [ref=e471]: new
+              - button "shrimp farming in Germany.png" [ref=e472]:
+                - img "shrimp farming in Germany.png" [ref=e473]
+              - generic [ref=e474]: Shrimp farming
+              - generic [ref=e476]: active
+            - button "No. 62251998 20 posts new fuck you.png Job hunting is a literal humiliation ritual active" [ref=e477] [cursor=pointer]:
+              - generic [ref=e478]:
+                - generic [ref=e479]: No. 62251998
+                - generic [ref=e480]: 20 posts
+              - generic [ref=e481]: new
+              - button "fuck you.png" [ref=e482]:
+                - img "fuck you.png" [ref=e483]
+              - generic [ref=e484]: Job hunting is a literal humiliation ritual
+              - generic [ref=e486]: active
+            - button "No. 62246074 315 posts new leafQuarters.jpg /pmg/ - Precious Metals General active" [ref=e487] [cursor=pointer]:
+              - generic [ref=e488]:
+                - generic [ref=e489]: No. 62246074
+                - generic [ref=e490]: 315 posts
+              - generic [ref=e491]: new
+              - button "leafQuarters.jpg" [ref=e492]:
+                - img "leafQuarters.jpg" [ref=e493]
+              - generic [ref=e494]: /pmg/ - Precious Metals General
+              - generic [ref=e496]: active
+            - button "No. 62252556 59 posts new gnat5cbju32h1.png Untitled thread active" [ref=e497] [cursor=pointer]:
+              - generic [ref=e498]:
+                - generic [ref=e499]: No. 62252556
+                - generic [ref=e500]: 59 posts
+              - generic [ref=e501]: new
+              - button "gnat5cbju32h1.png" [ref=e502]:
+                - img "gnat5cbju32h1.png" [ref=e503]
+              - generic [ref=e504]: Untitled thread
+              - generic [ref=e506]: active
+            - button "No. 62252579 18 posts new yes-mike-johnson-seriously-argued-today-that-members-of-v0-b3wblvpmzk1h1.png Untitled thread active" [ref=e507] [cursor=pointer]:
+              - generic [ref=e508]:
+                - generic [ref=e509]: No. 62252579
+                - generic [ref=e510]: 18 posts
+              - generic [ref=e511]: new
+              - button "yes-mike-johnson-seriously-argued-today-that-members-of-v0-b3wblvpmzk1h1.png" [ref=e512]:
+                - img "yes-mike-johnson-seriously-argued-today-that-members-of-v0-b3wblvpmzk1h1.png" [ref=e513]
+              - generic [ref=e514]: Untitled thread
+              - generic [ref=e516]: active
+            - button "No. 62252613 15 posts new as91mk.jpg Untitled thread active" [ref=e517] [cursor=pointer]:
+              - generic [ref=e518]:
+                - generic [ref=e519]: No. 62252613
+                - generic [ref=e520]: 15 posts
+              - generic [ref=e521]: new
+              - button "as91mk.jpg" [ref=e522]:
+                - img "as91mk.jpg" [ref=e523]
+              - generic [ref=e524]: Untitled thread
+              - generic [ref=e526]: active
+            - button "No. 62252748 16 posts new xrp-1-scaled-1185208699.jpg Untitled thread active" [ref=e527] [cursor=pointer]:
+              - generic [ref=e528]:
+                - generic [ref=e529]: No. 62252748
+                - generic [ref=e530]: 16 posts
+              - generic [ref=e531]: new
+              - button "xrp-1-scaled-1185208699.jpg" [ref=e532]:
+                - img "xrp-1-scaled-1185208699.jpg" [ref=e533]
+              - generic [ref=e534]: Untitled thread
+              - generic [ref=e536]: active
+            - button "No. 62250975 118 posts new 1778883834672974.jpg holy fuck why is this board so dead active" [ref=e537] [cursor=pointer]:
+              - generic [ref=e538]:
+                - generic [ref=e539]: No. 62250975
+                - generic [ref=e540]: 118 posts
+              - generic [ref=e541]: new
+              - button "1778883834672974.jpg" [ref=e542]:
+                - img "1778883834672974.jpg" [ref=e543]
+              - generic [ref=e544]: holy fuck why is this board so dead
+              - generic [ref=e546]: active
+            - button "No. 62249637 10 posts new card-show-.jpg 2.jpg sports card shows active" [ref=e547] [cursor=pointer]:
+              - generic [ref=e548]:
+                - generic [ref=e549]: No. 62249637
+                - generic [ref=e550]: 10 posts
+              - generic [ref=e551]: new
+              - button "card-show-.jpg 2.jpg" [ref=e552]:
+                - img "card-show-.jpg 2.jpg" [ref=e553]
+              - generic [ref=e554]: sports card shows
+              - generic [ref=e556]: active
+            - button "No. 62242323 198 posts new IMG_4386.jpg Watch Thread active" [ref=e557] [cursor=pointer]:
+              - generic [ref=e558]:
+                - generic [ref=e559]: No. 62242323
+                - generic [ref=e560]: 198 posts
+              - generic [ref=e561]: new
+              - button "IMG_4386.jpg" [ref=e562]:
+                - img "IMG_4386.jpg" [ref=e563]
+              - generic [ref=e564]: Watch Thread
+              - generic [ref=e566]: active
+            - button "No. 62219942 124 posts new 1686850610267366.jpg You should be holding at least 1 BTC. active" [ref=e567] [cursor=pointer]:
+              - generic [ref=e568]:
+                - generic [ref=e569]: No. 62219942
+                - generic [ref=e570]: 124 posts
+              - generic [ref=e571]: new
+              - button "1686850610267366.jpg" [ref=e572]:
+                - img "1686850610267366.jpg" [ref=e573]
+              - generic [ref=e574]: You should be holding at least 1 BTC.
+              - generic [ref=e576]: active
+            - button "No. 62254481 84 posts new Screenshot_20-5-2026_19627_www.reddit.com.jpg Untitled thread active" [ref=e577] [cursor=pointer]:
+              - generic [ref=e578]:
+                - generic [ref=e579]: No. 62254481
+                - generic [ref=e580]: 84 posts
+              - generic [ref=e581]: new
+              - button "Screenshot_20-5-2026_19627_www.reddit.com.jpg" [ref=e582]:
+                - img "Screenshot_20-5-2026_19627_www.reddit.com.jpg" [ref=e583]
+              - generic [ref=e584]: Untitled thread
+              - generic [ref=e586]: active
+            - button "No. 62254027 20 posts new 1774531863758058.jpg career switching active" [ref=e587] [cursor=pointer]:
+              - generic [ref=e588]:
+                - generic [ref=e589]: No. 62254027
+                - generic [ref=e590]: 20 posts
+              - generic [ref=e591]: new
+              - button "1774531863758058.jpg" [ref=e592]:
+                - img "1774531863758058.jpg" [ref=e593]
+              - generic [ref=e594]: career switching
+              - generic [ref=e596]: active
+            - button "No. 62249593 63 posts new FUCKYES.jpg Untitled thread active" [ref=e597] [cursor=pointer]:
+              - generic [ref=e598]:
+                - generic [ref=e599]: No. 62249593
+                - generic [ref=e600]: 63 posts
+              - generic [ref=e601]: new
+              - button "FUCKYES.jpg" [ref=e602]:
+                - img "FUCKYES.jpg" [ref=e603]
+              - generic [ref=e604]: Untitled thread
+              - generic [ref=e606]: active
+            - button "No. 62253607 18 posts new 1696458028821787.png Untitled thread active" [ref=e607] [cursor=pointer]:
+              - generic [ref=e608]:
+                - generic [ref=e609]: No. 62253607
+                - generic [ref=e610]: 18 posts
+              - generic [ref=e611]: new
+              - button "1696458028821787.png" [ref=e612]:
+                - img "1696458028821787.png" [ref=e613]
+              - generic [ref=e614]: Untitled thread
+              - generic [ref=e616]: active
+            - button "No. 62254508 11 posts new 1777058609590922.mp4 Zcash exit pump ending soon active" [ref=e617] [cursor=pointer]:
+              - generic [ref=e618]:
+                - generic [ref=e619]: No. 62254508
+                - generic [ref=e620]: 11 posts
+              - generic [ref=e621]: new
+              - button "1777058609590922.mp4" [ref=e622]:
+                - img "1777058609590922.mp4" [ref=e623]
+              - generic [ref=e624]: Zcash exit pump ending soon
+              - generic [ref=e626]: active
+            - button "No. 62254948 14 posts new XRPright.png KABOOOOOOOOOOOOOOOOM SMELLS LIKE I WAS RIGHT ABOUT XRP active" [ref=e627] [cursor=pointer]:
+              - generic [ref=e628]:
+                - generic [ref=e629]: No. 62254948
+                - generic [ref=e630]: 14 posts
+              - generic [ref=e631]: new
+              - button "XRPright.png" [ref=e632]:
+                - img "XRPright.png" [ref=e633]
+              - generic [ref=e634]: KABOOOOOOOOOOOOOOOOM SMELLS LIKE I WAS RIGHT ABOUT XRP
+              - generic [ref=e636]: active
+            - button "No. 62255052 19 posts new 1779205033838139.webm Untitled thread active" [ref=e637] [cursor=pointer]:
+              - generic [ref=e638]:
+                - generic [ref=e639]: No. 62255052
+                - generic [ref=e640]: 19 posts
+              - generic [ref=e641]: new
+              - button "1779205033838139.webm" [ref=e642]:
+                - img "1779205033838139.webm" [ref=e643]
+              - generic [ref=e644]: Untitled thread
+              - generic [ref=e646]: active
+            - button "No. 62255609 64 posts new images.png Untitled thread active" [ref=e647] [cursor=pointer]:
+              - generic [ref=e648]:
+                - generic [ref=e649]: No. 62255609
+                - generic [ref=e650]: 64 posts
+              - generic [ref=e651]: new
+              - button "images.png" [ref=e652]:
+                - img "images.png" [ref=e653]
+              - generic [ref=e654]: Untitled thread
+              - generic [ref=e656]: active
+            - button "No. 62253453 19 posts new 1772644697366372.png Untitled thread active" [ref=e657] [cursor=pointer]:
+              - generic [ref=e658]:
+                - generic [ref=e659]: No. 62253453
+                - generic [ref=e660]: 19 posts
+              - generic [ref=e661]: new
+              - button "1772644697366372.png" [ref=e662]:
+                - img "1772644697366372.png" [ref=e663]
+              - generic [ref=e664]: Untitled thread
+              - generic [ref=e666]: active
+            - button "No. 62256052 38 posts new 1748866325224293.jpg Untitled thread active" [ref=e667] [cursor=pointer]:
+              - generic [ref=e668]:
+                - generic [ref=e669]: No. 62256052
+                - generic [ref=e670]: 38 posts
+              - generic [ref=e671]: new
+              - button "1748866325224293.jpg" [ref=e672]:
+                - img "1748866325224293.jpg" [ref=e673]
+              - generic [ref=e674]: Untitled thread
+              - generic [ref=e676]: active
+            - button "No. 62251322 32 posts new 1778042973839896.jpg Untitled thread active" [ref=e677] [cursor=pointer]:
+              - generic [ref=e678]:
+                - generic [ref=e679]: No. 62251322
+                - generic [ref=e680]: 32 posts
+              - generic [ref=e681]: new
+              - button "1778042973839896.jpg" [ref=e682]:
+                - img "1778042973839896.jpg" [ref=e683]
+              - generic [ref=e684]: Untitled thread
+              - generic [ref=e686]: active
+            - button "No. 62256239 22 posts new 6104152fea74d40019b9dba2.jpg Untitled thread active" [ref=e687] [cursor=pointer]:
+              - generic [ref=e688]:
+                - generic [ref=e689]: No. 62256239
+                - generic [ref=e690]: 22 posts
+              - generic [ref=e691]: new
+              - button "6104152fea74d40019b9dba2.jpg" [ref=e692]:
+                - img "6104152fea74d40019b9dba2.jpg" [ref=e693]
+              - generic [ref=e694]: Untitled thread
+              - generic [ref=e696]: active
+            - button "No. 62256387 27 posts new Screenshot_20260520_210544_Chrome.jpg Untitled thread active" [ref=e697] [cursor=pointer]:
+              - generic [ref=e698]:
+                - generic [ref=e699]: No. 62256387
+                - generic [ref=e700]: 27 posts
+              - generic [ref=e701]: new
+              - button "Screenshot_20260520_210544_Chrome.jpg" [ref=e702]:
+                - img "Screenshot_20260520_210544_Chrome.jpg" [ref=e703]
+              - generic [ref=e704]: Untitled thread
+              - generic [ref=e706]: active
+            - button "No. 62251646 31 posts new c_the_money_of_soul_and_possibility_control.png Untitled thread active" [ref=e707] [cursor=pointer]:
+              - generic [ref=e708]:
+                - generic [ref=e709]: No. 62251646
+                - generic [ref=e710]: 31 posts
+              - generic [ref=e711]: new
+              - button "c_the_money_of_soul_and_possibility_control.png" [ref=e712]:
+                - img "c_the_money_of_soul_and_possibility_control.png" [ref=e713]
+              - generic [ref=e714]: Untitled thread
+              - generic [ref=e716]: active
+            - button "No. 62256449 35 posts new 1746546535193879.jpg Untitled thread active" [ref=e717] [cursor=pointer]:
+              - generic [ref=e718]:
+                - generic [ref=e719]: No. 62256449
+                - generic [ref=e720]: 35 posts
+              - generic [ref=e721]: new
+              - button "1746546535193879.jpg" [ref=e722]:
+                - img "1746546535193879.jpg" [ref=e723]
+              - generic [ref=e724]: Untitled thread
+              - generic [ref=e726]: active
+            - button "No. 62256574 17 posts new 1779296893263120.jpg Untitled thread active" [ref=e727] [cursor=pointer]:
+              - generic [ref=e728]:
+                - generic [ref=e729]: No. 62256574
+                - generic [ref=e730]: 17 posts
+              - generic [ref=e731]: new
+              - button "1779296893263120.jpg" [ref=e732]:
+                - img "1779296893263120.jpg" [ref=e733]
+              - generic [ref=e734]: Untitled thread
+              - generic [ref=e736]: active
+            - button "No. 62256587 14 posts new r67idetyjdxfry.jpg Untitled thread active" [ref=e737] [cursor=pointer]:
+              - generic [ref=e738]:
+                - generic [ref=e739]: No. 62256587
+                - generic [ref=e740]: 14 posts
+              - generic [ref=e741]: new
+              - button "r67idetyjdxfry.jpg" [ref=e742]:
+                - img "r67idetyjdxfry.jpg" [ref=e743]
+              - generic [ref=e744]: Untitled thread
+              - generic [ref=e746]: active
+            - button "No. 62256898 9 posts new IMG_8725.jpg TNN wasn’t a meme active" [ref=e747] [cursor=pointer]:
+              - generic [ref=e748]:
+                - generic [ref=e749]: No. 62256898
+                - generic [ref=e750]: 9 posts
+              - generic [ref=e751]: new
+              - button "IMG_8725.jpg" [ref=e752]:
+                - img "IMG_8725.jpg" [ref=e753]
+              - generic [ref=e754]: TNN wasn’t a meme
+              - generic [ref=e756]: active
+            - button "No. 62257068 7 posts new peepo-nervous.gif Untitled thread active" [ref=e757] [cursor=pointer]:
+              - generic [ref=e758]:
+                - generic [ref=e759]: No. 62257068
+                - generic [ref=e760]: 7 posts
+              - generic [ref=e761]: new
+              - button "peepo-nervous.gif" [ref=e762]:
+                - img "peepo-nervous.gif" [ref=e763]
+              - generic [ref=e764]: Untitled thread
+              - generic [ref=e766]: active
+            - button "No. 62252118 13 posts new pepe chin.png Untitled thread active" [ref=e767] [cursor=pointer]:
+              - generic [ref=e768]:
+                - generic [ref=e769]: No. 62252118
+                - generic [ref=e770]: 13 posts
+              - generic [ref=e771]: new
+              - button "pepe chin.png" [ref=e772]:
+                - img "pepe chin.png" [ref=e773]
+              - generic [ref=e774]: Untitled thread
+              - generic [ref=e776]: active
+            - button "No. 62257244 15 posts new 7F5C89D3-E871-46B5-827A-0130FC46B439.png 9 dollars active" [ref=e777] [cursor=pointer]:
+              - generic [ref=e778]:
+                - generic [ref=e779]: No. 62257244
+                - generic [ref=e780]: 15 posts
+              - generic [ref=e781]: new
+              - button "7F5C89D3-E871-46B5-827A-0130FC46B439.png" [ref=e782]:
+                - img "7F5C89D3-E871-46B5-827A-0130FC46B439.png" [ref=e783]
+              - generic [ref=e784]: 9 dollars
+              - generic [ref=e786]: active
+            - button "No. 62257272 18 posts new chainlinksmellslikeIwasright.png Untitled thread active" [ref=e787] [cursor=pointer]:
+              - generic [ref=e788]:
+                - generic [ref=e789]: No. 62257272
+                - generic [ref=e790]: 18 posts
+              - generic [ref=e791]: new
+              - button "chainlinksmellslikeIwasright.png" [ref=e792]:
+                - img "chainlinksmellslikeIwasright.png" [ref=e793]
+              - generic [ref=e794]: Untitled thread
+              - generic [ref=e796]: active
+            - button "No. 62257363 15 posts new LINK:BTC.png LINK/BTC is trading at October 2017 levels active" [ref=e797] [cursor=pointer]:
+              - generic [ref=e798]:
+                - generic [ref=e799]: No. 62257363
+                - generic [ref=e800]: 15 posts
+              - generic [ref=e801]: new
+              - button "LINK:BTC.png" [ref=e802]:
+                - img "LINK:BTC.png" [ref=e803]
+              - generic [ref=e804]: LINK/BTC is trading at October 2017 levels
+              - generic [ref=e806]: active
+            - button "No. 62257364 14 posts new 1760052175298093.jpg Best books for learning about startups? active" [ref=e807] [cursor=pointer]:
+              - generic [ref=e808]:
+                - generic [ref=e809]: No. 62257364
+                - generic [ref=e810]: 14 posts
+              - generic [ref=e811]: new
+              - button "1760052175298093.jpg" [ref=e812]:
+                - img "1760052175298093.jpg" [ref=e813]
+              - generic [ref=e814]: Best books for learning about startups?
+              - generic [ref=e816]: active
+            - button "No. 62257367 26 posts new download.jpg I hold thousands of LINK and regularly spread Chainlink FUD active" [ref=e817] [cursor=pointer]:
+              - generic [ref=e818]:
+                - generic [ref=e819]: No. 62257367
+                - generic [ref=e820]: 26 posts
+              - generic [ref=e821]: new
+              - button "download.jpg" [ref=e822]:
+                - img "download.jpg" [ref=e823]
+              - generic [ref=e824]: I hold thousands of LINK and regularly spread Chainlink FUD
+              - generic [ref=e826]: active
+            - button "No. 62257375 24 posts new HIl_R9daIAEjD5Q.jpg Polymarket whales scam people through UMA shitcoin active" [ref=e827] [cursor=pointer]:
+              - generic [ref=e828]:
+                - generic [ref=e829]: No. 62257375
+                - generic [ref=e830]: 24 posts
+              - generic [ref=e831]: new
+              - button "HIl_R9daIAEjD5Q.jpg" [ref=e832]:
+                - img "HIl_R9daIAEjD5Q.jpg" [ref=e833]
+              - generic [ref=e834]: Polymarket whales scam people through UMA shitcoin
+              - generic [ref=e836]: active
+            - 'button "No. 62257595 11 posts new chainlink_x_ripple.jpg BREAKING: Ripple Joins Chainlink&#039;s SCALE Program active" [ref=e837] [cursor=pointer]':
+              - generic [ref=e838]:
+                - generic [ref=e839]: No. 62257595
+                - generic [ref=e840]: 11 posts
+              - generic [ref=e841]: new
+              - button "chainlink_x_ripple.jpg" [ref=e842]:
+                - img "chainlink_x_ripple.jpg" [ref=e843]
+              - generic [ref=e844]: "BREAKING: Ripple Joins Chainlink&#039;s SCALE Program"
+              - generic [ref=e846]: active
+            - button "No. 62257645 5 posts new IMG_5761.jpg Untitled thread active" [ref=e847] [cursor=pointer]:
+              - generic [ref=e848]:
+                - generic [ref=e849]: No. 62257645
+                - generic [ref=e850]: 5 posts
+              - generic [ref=e851]: new
+              - button "IMG_5761.jpg" [ref=e852]:
+                - img "IMG_5761.jpg" [ref=e853]
+              - generic [ref=e854]: Untitled thread
+              - generic [ref=e856]: active
+            - button "No. 62248957 48 posts new audi rs6.jpg Untitled thread active" [ref=e857] [cursor=pointer]:
+              - generic [ref=e858]:
+                - generic [ref=e859]: No. 62248957
+                - generic [ref=e860]: 48 posts
+              - generic [ref=e861]: new
+              - button "audi rs6.jpg" [ref=e862]:
+                - img "audi rs6.jpg" [ref=e863]
+              - generic [ref=e864]: Untitled thread
+              - generic [ref=e866]: active
+            - button "No. 62238663 119 posts new image_2026-05-16_115005993.png Untitled thread active" [ref=e867] [cursor=pointer]:
+              - generic [ref=e868]:
+                - generic [ref=e869]: No. 62238663
+                - generic [ref=e870]: 119 posts
+              - generic [ref=e871]: new
+              - button "image_2026-05-16_115005993.png" [ref=e872]:
+                - img "image_2026-05-16_115005993.png" [ref=e873]
+              - generic [ref=e874]: Untitled thread
+              - generic [ref=e876]: active
+            - button "No. 62258088 42 posts new 1779232800873688.png Gme emergency general active" [ref=e877] [cursor=pointer]:
+              - generic [ref=e878]:
+                - generic [ref=e879]: No. 62258088
+                - generic [ref=e880]: 42 posts
+              - generic [ref=e881]: new
+              - button "1779232800873688.png" [ref=e882]:
+                - img "1779232800873688.png" [ref=e883]
+              - generic [ref=e884]: Gme emergency general
+              - generic [ref=e886]: active
+            - button "No. 62253217 54 posts new female.jpg Do it for her active" [ref=e887] [cursor=pointer]:
+              - generic [ref=e888]:
+                - generic [ref=e889]: No. 62253217
+                - generic [ref=e890]: 54 posts
+              - generic [ref=e891]: new
+              - button "female.jpg" [ref=e892]:
+                - img "female.jpg" [ref=e893]
+              - generic [ref=e894]: Do it for her
+              - generic [ref=e896]: active
+            - button "No. 62258005 26 posts new monkey-monyet.gif Untitled thread active" [ref=e897] [cursor=pointer]:
+              - generic [ref=e898]:
+                - generic [ref=e899]: No. 62258005
+                - generic [ref=e900]: 26 posts
+              - generic [ref=e901]: new
+              - button "monkey-monyet.gif" [ref=e902]:
+                - img "monkey-monyet.gif" [ref=e903]
+              - generic [ref=e904]: Untitled thread
+              - generic [ref=e906]: active
+            - button "No. 62257795 14 posts new 1777120014635618.gif Untitled thread active" [ref=e907] [cursor=pointer]:
+              - generic [ref=e908]:
+                - generic [ref=e909]: No. 62257795
+                - generic [ref=e910]: 14 posts
+              - generic [ref=e911]: new
+              - button "1777120014635618.gif" [ref=e912]:
+                - img "1777120014635618.gif" [ref=e913]
+              - generic [ref=e914]: Untitled thread
+              - generic [ref=e916]: active
+            - button "No. 62253089 49 posts new hq720.jpg there is nothing to buy active" [ref=e917] [cursor=pointer]:
+              - generic [ref=e918]:
+                - generic [ref=e919]: No. 62253089
+                - generic [ref=e920]: 49 posts
+              - generic [ref=e921]: new
+              - button "hq720.jpg" [ref=e922]:
+                - img "hq720.jpg" [ref=e923]
+              - generic [ref=e924]: there is nothing to buy
+              - generic [ref=e926]: active
+            - button "No. 62258099 5 posts new 1779371408519.jpg Untitled thread active" [ref=e927] [cursor=pointer]:
+              - generic [ref=e928]:
+                - generic [ref=e929]: No. 62258099
+                - generic [ref=e930]: 5 posts
+              - generic [ref=e931]: new
+              - button "1779371408519.jpg" [ref=e932]:
+                - img "1779371408519.jpg" [ref=e933]
+              - generic [ref=e934]: Untitled thread
+              - generic [ref=e936]: active
+            - button "No. 62258128 3 posts new IMG_9150_Original.jpg Untitled thread active" [ref=e937] [cursor=pointer]:
+              - generic [ref=e938]:
+                - generic [ref=e939]: No. 62258128
+                - generic [ref=e940]: 3 posts
+              - generic [ref=e941]: new
+              - button "IMG_9150_Original.jpg" [ref=e942]:
+                - img "IMG_9150_Original.jpg" [ref=e943]
+              - generic [ref=e944]: Untitled thread
+              - generic [ref=e946]: active
+            - button "No. 62258191 315 posts new 1778190292840596.jpg /smg/ - stock market general active" [ref=e947] [cursor=pointer]:
+              - generic [ref=e948]:
+                - generic [ref=e949]: No. 62258191
+                - generic [ref=e950]: 315 posts
+              - generic [ref=e951]: new
+              - button "1778190292840596.jpg" [ref=e952]:
+                - img "1778190292840596.jpg" [ref=e953]
+              - generic [ref=e954]: /smg/ - stock market general
+              - generic [ref=e956]: active
+            - button "No. 62258306 4 posts new GuXlFk6XsAAfI8t.png Hyperliquid active" [ref=e957] [cursor=pointer]:
+              - generic [ref=e958]:
+                - generic [ref=e959]: No. 62258306
+                - generic [ref=e960]: 4 posts
+              - generic [ref=e961]: new
+              - button "GuXlFk6XsAAfI8t.png" [ref=e962]:
+                - img "GuXlFk6XsAAfI8t.png" [ref=e963]
+              - generic [ref=e964]: Hyperliquid
+              - generic [ref=e966]: active
+            - button "No. 62258361 16 posts new wgewgweg.png Untitled thread active" [ref=e967] [cursor=pointer]:
+              - generic [ref=e968]:
+                - generic [ref=e969]: No. 62258361
+                - generic [ref=e970]: 16 posts
+              - generic [ref=e971]: new
+              - button "wgewgweg.png" [ref=e972]:
+                - img "wgewgweg.png" [ref=e973]
+              - generic [ref=e974]: Untitled thread
+              - generic [ref=e976]: active
+            - button "No. 62258362 26 posts new IMG_4600.jpg Untitled thread active" [ref=e977] [cursor=pointer]:
+              - generic [ref=e978]:
+                - generic [ref=e979]: No. 62258362
+                - generic [ref=e980]: 26 posts
+              - generic [ref=e981]: new
+              - button "IMG_4600.jpg" [ref=e982]:
+                - img "IMG_4600.jpg" [ref=e983]
+              - generic [ref=e984]: Untitled thread
+              - generic [ref=e986]: active
+            - button "No. 62258387 217 posts new gme kings.jpg /GME/ - Cheers Fren Edition active" [ref=e987] [cursor=pointer]:
+              - generic [ref=e988]:
+                - generic [ref=e989]: No. 62258387
+                - generic [ref=e990]: 217 posts
+              - generic [ref=e991]: new
+              - button "gme kings.jpg" [ref=e992]:
+                - img "gme kings.jpg" [ref=e993]
+              - generic [ref=e994]: /GME/ - Cheers Fren Edition
+              - generic [ref=e996]: active
+            - button "No. 62258553 7 posts new 1749172392271241.png Untitled thread active" [ref=e997] [cursor=pointer]:
+              - generic [ref=e998]:
+                - generic [ref=e999]: No. 62258553
+                - generic [ref=e1000]: 7 posts
+              - generic [ref=e1001]: new
+              - button "1749172392271241.png" [ref=e1002]:
+                - img "1749172392271241.png" [ref=e1003]
+              - generic [ref=e1004]: Untitled thread
+              - generic [ref=e1006]: active
+            - button "No. 62258560 47 posts new 1729609259979954 1722730624781676.png Untitled thread active" [ref=e1007] [cursor=pointer]:
+              - generic [ref=e1008]:
+                - generic [ref=e1009]: No. 62258560
+                - generic [ref=e1010]: 47 posts
+              - generic [ref=e1011]: new
+              - button "1729609259979954 1722730624781676.png" [ref=e1012]:
+                - img "1729609259979954 1722730624781676.png" [ref=e1013]
+              - generic [ref=e1014]: Untitled thread
+              - generic [ref=e1016]: active
+            - button "No. 62258592 9 posts new PINK.jpg daily reminder that your 401k is invested in the this bubble without your will by asset managers active" [ref=e1017] [cursor=pointer]:
+              - generic [ref=e1018]:
+                - generic [ref=e1019]: No. 62258592
+                - generic [ref=e1020]: 9 posts
+              - generic [ref=e1021]: new
+              - button "PINK.jpg" [ref=e1022]:
+                - img "PINK.jpg" [ref=e1023]
+              - generic [ref=e1024]: daily reminder that your 401k is invested in the this bubble without your will by asset managers
+              - generic [ref=e1026]: active
+            - button "No. 62248842 87 posts new PXL_20240714_144237262.MP.jpg TCG General - Counting Zards active" [ref=e1027] [cursor=pointer]:
+              - generic [ref=e1028]:
+                - generic [ref=e1029]: No. 62248842
+                - generic [ref=e1030]: 87 posts
+              - generic [ref=e1031]: new
+              - button "PXL_20240714_144237262.MP.jpg" [ref=e1032]:
+                - img "PXL_20240714_144237262.MP.jpg" [ref=e1033]
+              - generic [ref=e1034]: TCG General - Counting Zards
+              - generic [ref=e1036]: active
+        - generic [ref=e1037]:
+          - generic [ref=e1038]:
+            - generic [ref=e1039]:
+              - img [ref=e1040]
+              - text: Thread 60278989
+            - link "Source" [ref=e1043] [cursor=pointer]:
+              - /url: https://boards.4chan.org/biz/thread/60278989
+              - text: Source
+              - img [ref=e1044]
+          - generic [ref=e1048]:
+            - textbox "Filter this thread" [ref=e1049]
+            - button "Local Filter" [ref=e1050]:
+              - img
+              - text: Local Filter
+          - generic [ref=e1051]:
+            - article [ref=e1052]:
+              - generic [ref=e1053]:
+                - generic [ref=e1054]: No. 60278989
+                - generic [ref=e1055]: 4/25/2025, 4:47:07 PM
+                - generic [ref=e1056]: ai analyzed
+                - link "source" [ref=e1057] [cursor=pointer]:
+                  - /url: https://boards.4chan.org/biz/thread/60278989
+                  - text: source
+                  - img [ref=e1058]
+              - heading "Welcome to /biz/ - Business &amp; Finance" [level=2] [ref=e1062]
+              - button "business.jpg business.jpg · 900x599" [ref=e1063]:
+                - img "business.jpg" [ref=e1064]
+                - generic [ref=e1065]: business.jpg · 900x599
+              - generic [ref=e1066]:
+                - generic [ref=e1067]: AI summary
+                - text: Board rules and scope description for /biz/ covering business, economics, markets (including cryptocurrencies), and prohibitions on advertising, political posts, and solicitation.
+              - paragraph [ref=e1068]: "This board is for the discussion of topics related to business, economics, financial markets, securities, currencies (including cryptocurrencies), commodities, etc -- as well as topics relating to starting and running a business. Discussions of government policy must be strictly limited to economic policies (fiscal and monetary). Discussions of a political nature should be posted on >>>/pol/. Global Rule 3 is also obviously in effect. Note: /biz/ is NOT a place for ADVERTISING or SOLICITING. Do NOT use it to promote your business, ventures, or anything you may have an interest in. Anything that looks remotely like advertising or soliciting will be removed. Begging/asking (including tipping) for cryptocurrencies or asking for money/capital is also strictly forbidden."
+              - generic [ref=e1069]:
+                - generic [ref=e1070]: sentiment:neutral
+                - generic [ref=e1071]: subject:crypto
+                - generic [ref=e1072]: subject:not_market_relevant
+                - generic [ref=e1073]: sentiment:neutral
+                - generic [ref=e1074]: ai_tag:platform_description
+                - generic [ref=e1075]: ai_tag:rules
+                - generic [ref=e1076]: ai_tag:moderation
+                - generic [ref=e1077]: ai_tag:community_guidelines
+            - article [ref=e1078]:
+              - generic [ref=e1079]:
+                - generic [ref=e1080]: No. 60278993
+                - generic [ref=e1081]: 4/25/2025, 4:47:56 PM
+                - generic [ref=e1082]: triaged
+                - generic [ref=e1083]: new
+                - link "source" [ref=e1084] [cursor=pointer]:
+                  - /url: https://boards.4chan.org/biz/thread/60278989#p60278993
+                  - text: source
+                  - img [ref=e1085]
+              - paragraph [ref=e1089]: Check the catalog before posting a new thread! Reply to existing threads about a topic instead of starting a new one. Mods will delete obvious duplicate threads and spam without notice.
+              - generic [ref=e1091]: sentiment:neutral
+        - complementary [ref=e1092]:
+          - generic [ref=e1093]:
+            - generic [ref=e1095]:
+              - img [ref=e1096]
+              - text: Security Summary
+            - generic [ref=e1099]:
+              - generic [ref=e1100]:
+                - textbox "Ticker or crypto symbol" [ref=e1101]
+                - button "Analyze" [ref=e1102]
+              - paragraph [ref=e1103]: Enter a symbol to collect related /biz/ posts and summarize the bullish and bearish case.
+          - generic [ref=e1104]:
+            - generic [ref=e1106]:
+              - img [ref=e1107]
+              - text: Ingest
+            - generic [ref=e1110]:
+              - generic [ref=e1111]: Workspace refreshed
+              - generic [ref=e1112]:
+                - generic [ref=e1113]: Threads
+                - generic [ref=e1114]: "206"
+              - generic [ref=e1115]:
+                - generic [ref=e1116]: Scraped posts
+                - generic [ref=e1117]: "6585"
+              - generic [ref=e1118]:
+                - generic [ref=e1119]: Triage queue
+                - generic [ref=e1120]: "0"
+              - generic [ref=e1121]:
+                - generic [ref=e1122]: Triaged posts
+                - generic [ref=e1123]: "6585"
+              - generic [ref=e1124]:
+                - generic [ref=e1125]: Latest post
+                - generic [ref=e1126]: 5/22/2026, 8:49:59 AM
+              - generic [ref=e1127]:
+                - generic [ref=e1128]: Progress Log
+                - generic [ref=e1129]:
+                  - generic [ref=e1130]: 8:52:07 AM Live progress connected
+                  - generic [ref=e1131]: 8:52:07 AM Live progress connected
+          - generic [ref=e1132]:
+            - generic [ref=e1134]:
+              - img [ref=e1135]
+              - text: Analysis
+            - generic [ref=e1137]:
+              - generic [ref=e1138]:
+                - generic [ref=e1139]:
+                  - generic [ref=e1140]: AI enrichment running
+                  - generic [ref=e1141]: 38%
+                - generic [ref=e1144]:
+                  - generic [ref=e1145]: 671/1780 posts analyzed
+                  - generic [ref=e1146]: running
+                  - generic [ref=e1147]: 0 triage backlog
+                  - generic [ref=e1148]: 1086 AI backlog
+                  - generic [ref=e1149]: 23 failed
+                  - generic [ref=e1150]: 6 AI workers
+              - generic [ref=e1151]:
+                - button "Start" [disabled]
+                - button "Pause" [ref=e1152]
+                - button "Resume" [disabled]
+              - generic [ref=e1153]:
+                - generic [ref=e1154]: AI status
+                - generic [ref=e1155]: AI enrichment running
+              - generic [ref=e1156]:
+                - generic [ref=e1157]: AI candidate posts
+                - generic [ref=e1158]: "1780"
+              - generic [ref=e1159]:
+                - generic [ref=e1160]: AI analyzed posts
+                - generic [ref=e1161]: "671"
+              - generic [ref=e1162]:
+                - generic [ref=e1163]: Queued triage
+                - generic [ref=e1164]: "0"
+              - generic [ref=e1165]:
+                - generic [ref=e1166]: Running triage
+                - generic [ref=e1167]: "0"
+              - generic [ref=e1168]:
+                - generic [ref=e1169]: Queued AI
+                - generic [ref=e1170]: "1068"
+              - generic [ref=e1171]:
+                - generic [ref=e1172]: Running AI
+                - generic [ref=e1173]: "18"
+              - generic [ref=e1174]:
+                - generic [ref=e1175]: AI backlog
+                - generic [ref=e1176]: "1086"
+              - generic [ref=e1177]:
+                - generic [ref=e1178]: Failed triage
+                - generic [ref=e1179]: "0"
+              - generic [ref=e1180]:
+                - generic [ref=e1181]: Failed AI
+                - generic [ref=e1182]: "23"
+              - generic [ref=e1183]:
+                - generic [ref=e1184]: AI concurrency
+                - generic [ref=e1185]: "6"
+              - generic [ref=e1186]:
+                - generic [ref=e1187]: Triage concurrency
+                - generic [ref=e1188]: "20"

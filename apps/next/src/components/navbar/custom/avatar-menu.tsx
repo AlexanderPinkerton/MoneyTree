@@ -74,20 +74,20 @@ export const AvatarMenu = observer(function AvatarMenu({
         </DropdownMenuTrigger>
 
         <DropdownMenuContent
-          className="w-max rounded-xl bg-black/90 shadow-lg border border-slate-800"
+          className="w-max rounded-xl bg-popover text-popover-foreground shadow-lg border border-border"
           align="end"
         >
           {/* Profile Section */}
           <div className="px-4 py-3">
-            <DropdownMenuLabel className="text-sm font-medium text-slate-300 mb-1">
+            <DropdownMenuLabel className="text-sm font-medium text-muted-foreground mb-1">
               Profile
             </DropdownMenuLabel>
             <div className="mb-2">
-              <div className="text-sm text-slate-200 font-medium">
+              <div className="text-sm text-foreground font-medium">
                 {rootStore.userData?.username || "No username"}
               </div>
               <div
-                className="text-xs text-slate-400 max-w-xs break-all whitespace-normal truncate"
+                className="text-xs text-muted-foreground max-w-xs break-all whitespace-normal truncate"
                 title={user?.email}
               >
                 {user?.email}
@@ -96,20 +96,20 @@ export const AvatarMenu = observer(function AvatarMenu({
             <DropdownMenuItem asChild>
               <Link
                 href="/profile"
-                className="w-full text-left px-2 py-2 text-sm text-slate-300 hover:bg-slate-800 rounded-md flex items-center gap-2 cursor-pointer"
+                className="w-full text-left px-2 py-2 text-sm text-foreground hover:bg-accent hover:text-accent-foreground rounded-md flex items-center gap-2 cursor-pointer"
               >
                 <User size={16} /> View Profile
               </Link>
             </DropdownMenuItem>
           </div>
 
-          <DropdownMenuSeparator className="bg-slate-800" />
+          <DropdownMenuSeparator className="bg-border" />
 
           {/* Logout Section */}
           <div className="px-4 py-3">
             <DropdownMenuItem
               onClick={handleLogout}
-              className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800 rounded-md flex items-center gap-2 cursor-pointer"
+              className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-accent rounded-md flex items-center gap-2 cursor-pointer"
             >
               <LogOut size={16} /> Logout
             </DropdownMenuItem>
