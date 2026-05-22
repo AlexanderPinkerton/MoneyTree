@@ -100,11 +100,22 @@ export class XController {
   @Get("tweets")
   async listTweets(
     @Query("handle") handle?: string,
+    @Query("ticker") ticker?: string,
     @Query("limit") limit = "50",
   ) {
     const take = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+    const symbol = ticker?.trim().replace(/^\$/, "").toUpperCase();
     return this.prisma.x_tweet.findMany({
-      where: handle ? { handle } : undefined,
+      where: {
+        ...(handle ? { handle } : {}),
+        ...(symbol
+          ? {
+              security_mentions: {
+                some: { symbol, source: "openai" },
+              },
+            }
+          : {}),
+      },
       orderBy: { posted_at: "desc" },
       take,
     });

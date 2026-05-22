@@ -23,6 +23,7 @@ import {
   TrendingDown,
   Sparkles,
   History,
+  X as XIcon,
 } from "lucide-react";
 import type {
   XAccountDto,
@@ -109,6 +110,7 @@ export default function HomeXPage() {
   );
   const [window, setWindow] = useState<WindowKey>("7d");
   const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [newHandle, setNewHandle] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [adding, setAdding] = useState(false);
@@ -139,10 +141,15 @@ export default function HomeXPage() {
   }, [authFetch, token]);
 
   const loadTweets = useCallback(
-    async (handle?: string | null) => {
+    async (handle?: string | null, ticker?: string | null) => {
       if (!token) return;
-      const qs = handle ? `?handle=${encodeURIComponent(handle)}` : "";
-      const list = await authFetch<XTweetDto[]>(`/x/tweets${qs}`);
+      const params = new URLSearchParams();
+      if (handle) params.set("handle", handle);
+      if (ticker) params.set("ticker", ticker);
+      const qs = params.toString();
+      const list = await authFetch<XTweetDto[]>(
+        `/x/tweets${qs ? `?${qs}` : ""}`,
+      );
       setTweets(list);
     },
     [authFetch, token],
@@ -197,18 +204,24 @@ export default function HomeXPage() {
   }, [window, selectedHandle, loadSentiment]);
 
   useEffect(() => {
-    void loadTweets(selectedHandle);
-  }, [selectedHandle, loadTweets]);
+    void loadTweets(selectedHandle, selectedTicker);
+  }, [selectedHandle, selectedTicker, loadTweets]);
 
   // Poll ingest status while running
   useEffect(() => {
     if (!ingestStatus?.isRunning) return;
     const id = setInterval(() => {
       void loadIngestStatus();
-      void loadTweets(selectedHandle);
+      void loadTweets(selectedHandle, selectedTicker);
     }, 4000);
     return () => clearInterval(id);
-  }, [ingestStatus?.isRunning, loadIngestStatus, loadTweets, selectedHandle]);
+  }, [
+    ingestStatus?.isRunning,
+    loadIngestStatus,
+    loadTweets,
+    selectedHandle,
+    selectedTicker,
+  ]);
 
   // Poll analysis status while processing
   useEffect(() => {
@@ -218,7 +231,7 @@ export default function HomeXPage() {
     const id = setInterval(() => {
       void loadAnalysisStatus();
       void loadSentiment(window, selectedHandle);
-      void loadTweets(selectedHandle);
+      void loadTweets(selectedHandle, selectedTicker);
     }, 6000);
     return () => clearInterval(id);
   }, [
@@ -228,6 +241,7 @@ export default function HomeXPage() {
     loadSentiment,
     loadTweets,
     selectedHandle,
+    selectedTicker,
     window,
   ]);
 
@@ -364,9 +378,12 @@ export default function HomeXPage() {
   ]);
 
   const headerTitle = useMemo(() => {
-    if (selectedHandle) return `Tweets from @${selectedHandle}`;
-    return "All tracked tweets";
-  }, [selectedHandle]);
+    const parts: string[] = [];
+    if (selectedTicker) parts.push(`$${selectedTicker}`);
+    if (selectedHandle) parts.push(`@${selectedHandle}`);
+    if (parts.length === 0) return "All tracked tweets";
+    return `Tweets · ${parts.join(" · ")}`;
+  }, [selectedHandle, selectedTicker]);
 
   return (
     <div className="biz-workspace min-h-screen bg-background text-foreground">
@@ -580,12 +597,27 @@ export default function HomeXPage() {
 
           {/* Middle: Tweets */}
           <section className="min-h-[72vh] border border-border bg-card">
-            <header className="flex items-center justify-between border-b border-border px-3 py-2 text-sm font-medium">
-              <span>{headerTitle}</span>
+            <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <span>{headerTitle}</span>
+                {(selectedTicker || selectedHandle) && (
+                  <button
+                    onClick={() => {
+                      setSelectedTicker(null);
+                      setSelectedHandle(null);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                    title="Clear filters"
+                  >
+                    clear filters
+                    <XIcon className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => void loadTweets(selectedHandle)}
+                onClick={() => void loadTweets(selectedHandle, selectedTicker)}
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -772,10 +804,13 @@ export default function HomeXPage() {
                     {sentiment.tickers.slice(0, 12).map((t) => {
                       const direction =
                         t.net > 0 ? "bull" : t.net < 0 ? "bear" : "mixed";
+                      const isSelected = selectedTicker === t.symbol;
                       return (
                         <li
                           key={t.symbol}
-                          className="flex items-center justify-between rounded px-2 py-1 hover:bg-accent"
+                          className={`flex items-center justify-between rounded px-2 py-1 ${
+                            isSelected ? "bg-accent" : "hover:bg-accent"
+                          }`}
                         >
                           <div className="flex items-center gap-2">
                             {direction === "bull" && (
@@ -784,7 +819,15 @@ export default function HomeXPage() {
                             {direction === "bear" && (
                               <TrendingDown className="h-3 w-3 text-rose-600" />
                             )}
-                            <TickerSymbol symbol={t.symbol} withDollar />
+                            <TickerSymbol
+                              symbol={t.symbol}
+                              withDollar
+                              onClick={() =>
+                                setSelectedTicker((cur) =>
+                                  cur === t.symbol ? null : t.symbol,
+                                )
+                              }
+                            />
                             <span className="text-xs text-muted-foreground">
                               {t.total}
                             </span>
