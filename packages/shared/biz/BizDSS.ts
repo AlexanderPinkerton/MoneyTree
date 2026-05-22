@@ -181,16 +181,41 @@ export interface BizCorpusTermDto {
   value: string;
   count: number;
   weight: number;
+  kind?: "security" | "tag" | "subject" | "phrase" | "term";
+}
+
+export interface BizTermBlacklistEntryDto {
+  id: string;
+  term: string;
+  normalized_term: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BizTrendingSecurityDto {
+  symbol: string;
+  count: number;
+  bullish: number;
+  bearish: number;
+  neutral: number;
+  mixed: number;
+  weight: number;
 }
 
 export interface BizCorpusOverviewDto {
   generated_at: string;
+  window_label: string;
+  window_started_at: string | null;
   total_threads: number;
   total_posts: number;
   analysis_counts: Record<BizPostAnalysisState, number>;
   stance_counts: Record<BizSentiment, number>;
   top_securities: BizCorpusTermDto[];
   top_tags: BizCorpusTermDto[];
+  top_subjects: BizCorpusTermDto[];
+  signal_terms: BizCorpusTermDto[];
+  term_blacklist: BizTermBlacklistEntryDto[];
+  trending_securities: BizTrendingSecurityDto[];
   heatmap_terms: BizCorpusTermDto[];
   recent_posts: BizPostDto[];
 }

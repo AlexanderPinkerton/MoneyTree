@@ -7,12 +7,14 @@ import {
   useMemo,
   useRef,
   useState,
+  type FormEvent,
   type ReactNode,
   type RefObject,
 } from "react";
 import {
   Activity,
   ArrowDownUp,
+  Ban,
   BarChart3,
   Bell,
   ExternalLink,
@@ -25,6 +27,7 @@ import {
   Tags,
   TrendingDown,
   TrendingUp,
+  X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -38,6 +41,7 @@ import type {
   BizRealtimeEventDto,
   BizSearchResponseDto,
   BizSecuritySummaryDto,
+  BizTermBlacklistEntryDto,
   BizThreadDetailDto,
   BizThreadDto,
 } from "@moneytree/shared";
@@ -83,6 +87,13 @@ type ImagePreview = {
   attachment: BizAttachmentDto;
   title: string;
 };
+type CorpusSearchOverrides = Partial<{
+  query: string;
+  tag: string;
+  symbol: string;
+  sentiment: string;
+  analysisState: string;
+}>;
 
 export default function HomePage() {
   useAuthGuard();
@@ -201,28 +212,85 @@ export default function HomePage() {
     );
   }, [authFetch, token]);
 
+  const blacklistCorpusTerm = useCallback(
+    async (term: string) => {
+      if (!token || !term.trim()) return;
+      await authFetch<BizTermBlacklistEntryDto[]>(
+        "/biz/corpus/term-blacklist",
+        {
+          method: "POST",
+          body: JSON.stringify({ term: term.trim() }),
+        },
+      );
+      setNotice(`Blacklisted "${term.trim()}"`);
+      await loadCorpusOverview();
+    },
+    [authFetch, loadCorpusOverview, token],
+  );
+
+  const removeCorpusBlacklistTerm = useCallback(
+    async (term: string) => {
+      if (!token || !term.trim()) return;
+      await authFetch<BizTermBlacklistEntryDto[]>(
+        "/biz/corpus/term-blacklist/remove",
+        {
+          method: "POST",
+          body: JSON.stringify({ term: term.trim() }),
+        },
+      );
+      setNotice(`Removed "${term.trim()}" from blacklist`);
+      await loadCorpusOverview();
+    },
+    [authFetch, loadCorpusOverview, token],
+  );
+
   const loadFeed = useCallback(async () => {
     if (!token) return;
     setFeedResponse(await authFetch<BizSearchResponseDto>("/biz/feed"));
   }, [authFetch, token]);
 
-  const runCorpusSearch = useCallback(async () => {
-    if (!token) return;
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    if (tag.trim()) params.set("tag", tag.trim());
-    if (symbol.trim()) params.set("symbol", symbol.trim().toUpperCase());
-    if (sentiment !== "all") params.set("sentiment", sentiment);
-    if (analysisState !== "all") params.set("analysis_state", analysisState);
-    params.set("limit", "80");
-    setSearchResponse(
-      await authFetch<BizSearchResponseDto>(
-        `/biz/corpus/search?${params.toString()}`,
-      ),
-    );
-    setCorpusSearched(true);
-    setReaderMode("corpus");
-  }, [analysisState, authFetch, query, sentiment, symbol, tag, token]);
+  const runCorpusSearch = useCallback(
+    async (overrides: CorpusSearchOverrides = {}) => {
+      if (!token) return;
+      const nextQuery =
+        "query" in overrides ? String(overrides.query ?? "") : query;
+      const nextTag = "tag" in overrides ? String(overrides.tag ?? "") : tag;
+      const nextSymbol =
+        "symbol" in overrides ? String(overrides.symbol ?? "") : symbol;
+      const nextSentiment =
+        "sentiment" in overrides
+          ? String(overrides.sentiment ?? "all")
+          : sentiment;
+      const nextAnalysisState =
+        "analysisState" in overrides
+          ? String(overrides.analysisState ?? "all")
+          : analysisState;
+
+      if ("query" in overrides) setQuery(nextQuery);
+      if ("tag" in overrides) setTag(nextTag);
+      if ("symbol" in overrides) setSymbol(nextSymbol);
+      if ("sentiment" in overrides) setSentiment(nextSentiment);
+      if ("analysisState" in overrides) setAnalysisState(nextAnalysisState);
+
+      const params = new URLSearchParams();
+      if (nextQuery.trim()) params.set("q", nextQuery.trim());
+      if (nextTag.trim()) params.set("tag", nextTag.trim());
+      if (nextSymbol.trim())
+        params.set("symbol", nextSymbol.trim().toUpperCase());
+      if (nextSentiment !== "all") params.set("sentiment", nextSentiment);
+      if (nextAnalysisState !== "all")
+        params.set("analysis_state", nextAnalysisState);
+      params.set("limit", "80");
+      setSearchResponse(
+        await authFetch<BizSearchResponseDto>(
+          `/biz/corpus/search?${params.toString()}`,
+        ),
+      );
+      setCorpusSearched(true);
+      setReaderMode("corpus");
+    },
+    [analysisState, authFetch, query, sentiment, symbol, tag, token],
+  );
 
   const loadSecuritySummary = useCallback(async () => {
     if (!token || !symbol.trim()) return;
@@ -841,7 +909,42 @@ export default function HomePage() {
               </div>
             )}
             {readerMode === "corpus" && !corpusSearched ? (
-              <CorpusOverview overview={corpusOverview} />
+              <CorpusOverview
+                overview={corpusOverview}
+                onTermBlacklist={(term) => void blacklistCorpusTerm(term)}
+                onTermRemoveBlacklist={(term) =>
+                  void removeCorpusBlacklistTerm(term)
+                }
+                onTermSearch={(term) => {
+                  if (term.kind === "security") {
+                    void runCorpusSearch({
+                      query: "",
+                      tag: "",
+                      symbol: term.value,
+                      sentiment: "all",
+                      analysisState: "all",
+                    });
+                    return;
+                  }
+                  if (term.kind === "tag" || term.kind === "subject") {
+                    void runCorpusSearch({
+                      query: "",
+                      tag: term.value,
+                      symbol: "",
+                      sentiment: "all",
+                      analysisState: "all",
+                    });
+                    return;
+                  }
+                  void runCorpusSearch({
+                    query: term.value,
+                    tag: "",
+                    symbol: "",
+                    sentiment: "all",
+                    analysisState: "all",
+                  });
+                }}
+              />
             ) : (
               <PostList
                 posts={activePosts}
@@ -1078,8 +1181,14 @@ function PanelHeader({
 
 function CorpusOverview({
   overview,
+  onTermBlacklist,
+  onTermRemoveBlacklist,
+  onTermSearch,
 }: {
   overview: BizCorpusOverviewDto | null;
+  onTermBlacklist: (term: string) => void;
+  onTermRemoveBlacklist: (term: string) => void;
+  onTermSearch: (term: { value: string; kind?: string }) => void;
 }) {
   if (!overview) {
     return <div className="p-6 text-sm text-zinc-400">Loading corpus...</div>;
@@ -1088,40 +1197,54 @@ function CorpusOverview({
   return (
     <div className="grid max-h-[63vh] gap-4 overflow-y-auto p-4">
       <div className="grid gap-2 md:grid-cols-4">
+        <Metric label="Window" value={overview.window_label ?? "Recent 24h"} />
         <Metric label="Threads" value={overview.total_threads} />
         <Metric label="Posts" value={overview.total_posts} />
         <Metric
           label="AI analyzed"
           value={overview.analysis_counts.ai_analyzed ?? 0}
         />
-        <Metric
-          label="AI queued"
-          value={overview.analysis_counts.ai_queued ?? 0}
-        />
       </div>
 
       <section className="grid gap-3 md:grid-cols-2">
-        <TermCloud
-          icon={<TrendingUp className="h-4 w-4" />}
-          title="Top Securities"
-          terms={overview.top_securities}
+        <TrendingSecuritiesPanel
+          securities={overview.trending_securities ?? []}
+          onSymbolClick={(symbol) =>
+            onTermSearch({ value: symbol, kind: "security" })
+          }
         />
         <TermCloud
-          icon={<Tags className="h-4 w-4" />}
-          title="Top Tags"
-          terms={overview.top_tags}
+          icon={<TrendingUp className="h-4 w-4" />}
+          title="Top Subjects"
+          terms={overview.top_subjects ?? []}
+          onTermClick={onTermSearch}
         />
       </section>
 
       <TermCloud
         icon={<BarChart3 className="h-4 w-4" />}
-        title="Term Heatmap"
-        terms={overview.heatmap_terms}
+        title="Terminology Heatmap"
+        terms={overview.signal_terms ?? overview.heatmap_terms}
         heat
+        hint="Click a term to hide it from this view"
+        onTermClick={(term) => onTermBlacklist(term.value)}
+      />
+
+      <TermBlacklistPanel
+        terms={overview.term_blacklist ?? []}
+        onAdd={onTermBlacklist}
+        onRemove={onTermRemoveBlacklist}
+      />
+
+      <TermCloud
+        icon={<Tags className="h-4 w-4" />}
+        title="Top Tags"
+        terms={overview.top_tags}
+        onTermClick={onTermSearch}
       />
 
       <section>
-        <div className="mb-2 text-sm font-semibold">Recent Captured Posts</div>
+        <div className="mb-2 text-sm font-semibold">Recent Signal Evidence</div>
         <div className="grid gap-2">
           {overview.recent_posts.slice(0, 8).map((post) => (
             <div
@@ -1144,32 +1267,167 @@ function CorpusOverview({
   );
 }
 
+function TrendingSecuritiesPanel({
+  securities,
+  onSymbolClick,
+}: {
+  securities: NonNullable<BizCorpusOverviewDto["trending_securities"]>;
+  onSymbolClick: (symbol: string) => void;
+}) {
+  return (
+    <section className="border border-zinc-800 bg-[#121212] p-3">
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+        <TrendingUp className="h-4 w-4" />
+        Trending Securities
+      </div>
+      <div className="grid gap-2">
+        {securities.length > 0 ? (
+          securities.slice(0, 10).map((security) => {
+            const directional = security.bullish + security.bearish;
+            const bullPercent =
+              directional > 0
+                ? Math.round((security.bullish / directional) * 100)
+                : 0;
+            return (
+              <button
+                key={security.symbol}
+                type="button"
+                onClick={() => onSymbolClick(security.symbol)}
+                className="grid gap-1 border border-zinc-800 bg-[#0a0a0a] px-3 py-2 text-left hover:border-emerald-700/60"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-sm font-semibold text-emerald-300">
+                    {security.symbol}
+                  </span>
+                  <span className="text-xs text-zinc-400">
+                    {security.count} mentions
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-zinc-900">
+                  <div
+                    className="h-full rounded-full bg-emerald-400"
+                    style={{ width: `${bullPercent}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[11px] text-zinc-400">
+                  <span>{security.bullish} bull</span>
+                  <span>{security.bearish} bear</span>
+                  <span>{security.mixed + security.neutral} neutral/mixed</span>
+                </div>
+              </button>
+            );
+          })
+        ) : (
+          <span className="text-sm text-zinc-400">No securities yet.</span>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TermBlacklistPanel({
+  terms,
+  onAdd,
+  onRemove,
+}: {
+  terms: BizTermBlacklistEntryDto[];
+  onAdd: (term: string) => void;
+  onRemove: (term: string) => void;
+}) {
+  const [manualTerm, setManualTerm] = useState("");
+
+  function submitManualTerm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const term = manualTerm.trim();
+    if (!term) return;
+    onAdd(term);
+    setManualTerm("");
+  }
+
+  return (
+    <section className="border border-zinc-800 bg-[#121212] p-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Ban className="h-4 w-4" />
+          Term Blacklist
+        </div>
+        <span className="text-xs text-zinc-500">{terms.length} hidden</span>
+      </div>
+      <form onSubmit={submitManualTerm} className="mb-3 flex gap-2">
+        <Input
+          value={manualTerm}
+          onChange={(event) => setManualTerm(event.target.value)}
+          placeholder="Add hidden term"
+          className="h-8"
+        />
+        <Button type="submit" size="sm" variant="outline">
+          <Ban className="h-4 w-4" />
+          Hide
+        </Button>
+      </form>
+      <div className="flex flex-wrap gap-2">
+        {terms.length > 0 ? (
+          terms.map((term) => (
+            <span
+              key={term.id}
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-[#0a0a0a] px-2 py-1 text-xs text-zinc-200"
+            >
+              {term.normalized_term}
+              <button
+                type="button"
+                title={`Remove ${term.normalized_term}`}
+                onClick={() => onRemove(term.normalized_term)}
+                className="text-zinc-500 hover:text-emerald-300"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))
+        ) : (
+          <span className="text-sm text-zinc-400">
+            Click a heatmap term to hide it.
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function TermCloud({
   icon,
   title,
   terms,
   heat = false,
+  hint,
+  onTermClick,
 }: {
   icon: ReactNode;
   title: string;
-  terms: Array<{ value: string; count: number; weight: number }>;
+  terms: Array<{ value: string; count: number; weight: number; kind?: string }>;
   heat?: boolean;
+  hint?: string;
+  onTermClick?: (term: { value: string; kind?: string }) => void;
 }) {
   const max = Math.max(...terms.map((term) => term.weight), 1);
 
   return (
     <section className="border border-zinc-800 bg-[#121212] p-3">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        {icon}
-        {title}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          {icon}
+          {title}
+        </div>
+        {hint ? <span className="text-xs text-zinc-500">{hint}</span> : null}
       </div>
       <div className="flex flex-wrap gap-2">
         {terms.length > 0 ? (
           terms.map((term) => {
             const intensity = Math.max(0.18, term.weight / max);
             return (
-              <span
+              <button
                 key={term.value}
+                type="button"
+                onClick={() => onTermClick?.(term)}
                 className="rounded-md border border-zinc-800 px-2 py-1 text-xs"
                 style={
                   heat
@@ -1180,7 +1438,7 @@ function TermCloud({
                 }
               >
                 {term.value} <span className="text-zinc-400">{term.count}</span>
-              </span>
+              </button>
             );
           })
         ) : (

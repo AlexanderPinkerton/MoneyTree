@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationShutdown } from "@nestjs/common";
 import { Interval } from "@nestjs/schedule";
 import { Prisma } from "@prisma/client";
 
@@ -68,7 +68,7 @@ const BEARISH_WORDS = [
 const TRIAGE_RUNNING_TIMEOUT_MS = 5 * 60 * 1000;
 
 @Injectable()
-export class BizProcessingService {
+export class BizProcessingService implements OnApplicationShutdown {
   private readonly logger = new Logger(BizProcessingService.name);
   private readonly batchSize = this.parsePositiveInt(
     process.env.BIZ_TRIAGE_BATCH_SIZE,
@@ -80,13 +80,20 @@ export class BizProcessingService {
   );
   private isProcessing = false;
   private isPaused = false;
+  private isShuttingDown = false;
 
   constructor(private readonly prisma: PrismaService) {}
 
   @Interval(5000)
   async processBacklog() {
-    if (this.isPaused) return;
+    if (this.isPaused || this.isShuttingDown) return;
     await this.processQueuedTriage();
+  }
+
+  onApplicationShutdown(signal?: string) {
+    this.isShuttingDown = true;
+    this.isPaused = true;
+    this.logger.warn(`Stopping triage${signal ? ` after ${signal}` : ""}`);
   }
 
   normalizePost(post: FourChanPost, threadNo: number): NormalizedPost {
@@ -207,7 +214,7 @@ export class BizProcessingService {
   }
 
   async processQueuedTriage(limit = this.batchSize) {
-    if (this.isProcessing || this.isPaused) {
+    if (this.isProcessing || this.isPaused || this.isShuttingDown) {
       return { completed: 0, failed: 0 };
     }
 
@@ -217,7 +224,7 @@ export class BizProcessingService {
       let completed = 0;
       let failed = 0;
 
-      while (!this.isPaused) {
+      while (!this.isPaused && !this.isShuttingDown) {
         await this.requeueStaleRunningJobs();
 
         const jobs = await this.prisma.biz_analysis_job.findMany({
@@ -250,6 +257,10 @@ export class BizProcessingService {
   }
 
   async start() {
+    if (this.isShuttingDown) {
+      return this.getStatus();
+    }
+
     this.isPaused = false;
     void this.processQueuedTriage().catch((error) => {
       this.logger.warn(
@@ -267,6 +278,10 @@ export class BizProcessingService {
   }
 
   async resume() {
+    if (this.isShuttingDown) {
+      return this.getStatus();
+    }
+
     this.isPaused = false;
     return this.getStatus();
   }
@@ -306,6 +321,10 @@ export class BizProcessingService {
     post_id: string | null;
     thread_no: number | null;
   }): Promise<"completed" | "failed"> {
+    if (this.isShuttingDown) {
+      return "failed";
+    }
+
     await this.prisma.biz_analysis_job.update({
       where: { id: job.id },
       data: {
@@ -316,12 +335,15 @@ export class BizProcessingService {
     });
 
     try {
+      this.throwIfShuttingDown();
       if (job.post_id) {
         const result = await this.triagePost(job.post_id);
+        this.throwIfShuttingDown();
         if (this.shouldAiEnrich(result)) {
           await this.enqueueAiEnrichment(job.post_id, job.thread_no ?? null);
         }
       }
+      this.throwIfShuttingDown();
       await this.prisma.biz_analysis_job.update({
         where: { id: job.id },
         data: { status: "completed", finished_at: new Date() },
@@ -330,6 +352,11 @@ export class BizProcessingService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Triage job ${job.id} failed: ${message}`);
+      if (this.isShuttingDown) {
+        await this.requeueTriageJobDuringShutdown(job, message);
+        return "failed";
+      }
+
       await this.prisma.biz_analysis_job.update({
         where: { id: job.id },
         data: {
@@ -648,6 +675,53 @@ export class BizProcessingService {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed < 1) return fallback;
     return Math.floor(parsed);
+  }
+
+  private throwIfShuttingDown() {
+    if (this.isShuttingDown) {
+      throw new Error("Shutdown requested");
+    }
+  }
+
+  private async requeueTriageJobDuringShutdown(
+    job: { id: string; post_id: string | null },
+    message: string,
+  ) {
+    await this.prisma.biz_analysis_job
+      .update({
+        where: { id: job.id },
+        data: {
+          status: "queued",
+          started_at: null,
+          finished_at: null,
+          error_message: message,
+        },
+      })
+      .catch((error) => {
+        this.logger.warn(
+          `Failed to requeue triage job ${job.id} during shutdown: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+
+    if (job.post_id) {
+      await this.prisma.biz_post
+        .update({
+          where: { id: job.post_id },
+          data: {
+            analysis_state: "raw",
+            analysis_error: null,
+          },
+        })
+        .catch((error) => {
+          this.logger.warn(
+            `Failed to reset post ${job.post_id} during shutdown: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        });
+    }
   }
 
   private async mapWithConcurrency<T, R>(

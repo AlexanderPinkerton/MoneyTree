@@ -210,3 +210,13 @@ model biz_security_mention {
   @@index([sentiment])
   @@index([thread_no])
 }
+
+model biz_term_blacklist {
+  id              String   @id @default(cuid())
+  term            String
+  normalized_term String   @unique
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([created_at])
+}

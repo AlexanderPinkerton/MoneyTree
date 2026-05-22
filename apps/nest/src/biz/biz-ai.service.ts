@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationShutdown } from "@nestjs/common";
 import { Interval } from "@nestjs/schedule";
 
 import { PrismaService } from "../prisma/prisma.service";
@@ -123,7 +123,7 @@ const ANALYSIS_SCHEMA = {
 const AI_RUNNING_TIMEOUT_MS = 15 * 60 * 1000;
 
 @Injectable()
-export class BizAiService {
+export class BizAiService implements OnApplicationShutdown {
   private readonly logger = new Logger(BizAiService.name);
   private readonly model = process.env.OPENAI_ANALYSIS_MODEL || "gpt-5-mini";
   private readonly analysisVersion = "biz-post-v2";
@@ -137,6 +137,8 @@ export class BizAiService {
   );
   private isProcessing = false;
   private isPaused = false;
+  private isShuttingDown = false;
+  private readonly activeAbortControllers = new Set<AbortController>();
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -146,15 +148,26 @@ export class BizAiService {
 
   @Interval(5000)
   async processBacklog() {
-    if (this.isPaused) {
+    if (this.isPaused || this.isShuttingDown) {
       this.logger.debug("AI enrichment is paused; skipping tick");
       return;
     }
     await this.processQueuedAiEnrichment();
   }
 
+  onApplicationShutdown(signal?: string) {
+    this.isShuttingDown = true;
+    this.isPaused = true;
+    this.logger.warn(
+      `Stopping AI enrichment${signal ? ` after ${signal}` : ""}`,
+    );
+    for (const controller of this.activeAbortControllers) {
+      controller.abort();
+    }
+  }
+
   async processQueuedAiEnrichment(limit = this.batchSize) {
-    if (this.isPaused) {
+    if (this.isPaused || this.isShuttingDown) {
       this.logger.debug("AI enrichment is paused; skipping tick");
       return { completed: 0, skipped: 0, failed: 0 };
     }
@@ -183,7 +196,7 @@ export class BizAiService {
       let completed = 0;
       let failed = 0;
 
-      while (!this.isPaused) {
+      while (!this.isPaused && !this.isShuttingDown) {
         await this.requeueStaleRunningJobs();
 
         const jobs = await this.prisma.biz_analysis_job.findMany({
@@ -217,6 +230,10 @@ export class BizAiService {
   }
 
   async start(limit = this.batchSize) {
+    if (this.isShuttingDown) {
+      return this.getStatus();
+    }
+
     this.isPaused = false;
     void this.processQueuedAiEnrichment(limit).catch((error) => {
       this.logger.warn(
@@ -234,6 +251,10 @@ export class BizAiService {
   }
 
   async resume() {
+    if (this.isShuttingDown) {
+      return this.getStatus();
+    }
+
     this.isPaused = false;
     return this.start();
   }
@@ -323,6 +344,10 @@ export class BizAiService {
     id: string;
     post_id: string | null;
   }): Promise<"completed" | "failed"> {
+    if (this.isShuttingDown) {
+      return "failed";
+    }
+
     await this.prisma.biz_analysis_job.update({
       where: { id: job.id },
       data: {
@@ -333,6 +358,7 @@ export class BizAiService {
     });
 
     try {
+      this.throwIfShuttingDown();
       if (!job.post_id) {
         throw new Error("AI enrichment job is missing post_id");
       }
@@ -346,6 +372,11 @@ export class BizAiService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`AI enrichment job ${job.id} failed: ${message}`);
+      if (this.isShuttingDown) {
+        await this.requeueJobDuringShutdown(job, message);
+        return "failed";
+      }
+
       if (job.post_id) {
         await this.prisma.biz_post.update({
           where: { id: job.post_id },
@@ -385,6 +416,7 @@ export class BizAiService {
   }
 
   private async enrichPost(postId: string) {
+    this.throwIfShuttingDown();
     const post = await this.prisma.biz_post.findUnique({
       where: { id: postId },
       include: {
@@ -399,6 +431,7 @@ export class BizAiService {
     }
 
     const analysis = await this.callOpenAi(post);
+    this.throwIfShuttingDown();
 
     await this.prisma.$transaction([
       this.prisma.biz_post_tag.upsert({
@@ -529,49 +562,64 @@ export class BizAiService {
     tags: Array<{ tag_type: string; value: string }>;
     security_mentions: Array<{ symbol: string; stance: string }>;
   }): Promise<AiPostAnalysis> {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: this.model,
-        input: [
-          {
-            role: "system",
-            content:
-              "You classify anonymous finance forum posts for research organization. Return only structured JSON. Do not give investment advice. Capture uncertainty and mark weak evidence neutral or mixed.",
-          },
-          {
-            role: "user",
-            content: this.buildPrompt(post),
-          },
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "biz_post_analysis",
-            strict: true,
-            schema: ANALYSIS_SCHEMA,
-          },
+    this.throwIfShuttingDown();
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), 30000);
+    this.activeAbortControllers.add(abortController);
+
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
         },
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
+        body: JSON.stringify({
+          model: this.model,
+          input: [
+            {
+              role: "system",
+              content:
+                "You classify anonymous finance forum posts for research organization. Return only structured JSON. Do not give investment advice. Capture uncertainty and mark weak evidence neutral or mixed.",
+            },
+            {
+              role: "user",
+              content: this.buildPrompt(post),
+            },
+          ],
+          text: {
+            format: {
+              type: "json_schema",
+              name: "biz_post_analysis",
+              strict: true,
+              schema: ANALYSIS_SCHEMA,
+            },
+          },
+        }),
+        signal: abortController.signal,
+      });
 
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`OpenAI ${response.status}: ${body.slice(0, 500)}`);
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`OpenAI ${response.status}: ${body.slice(0, 500)}`);
+      }
+
+      const body = await response.json();
+      const outputText = this.extractOutputText(body);
+      if (!outputText) {
+        throw new Error("OpenAI response did not include output text");
+      }
+
+      return JSON.parse(outputText) as AiPostAnalysis;
+    } catch (error) {
+      if (this.isShuttingDown) {
+        throw new Error("Shutdown requested");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+      this.activeAbortControllers.delete(abortController);
     }
-
-    const body = await response.json();
-    const outputText = this.extractOutputText(body);
-    if (!outputText) {
-      throw new Error("OpenAI response did not include output text");
-    }
-
-    return JSON.parse(outputText) as AiPostAnalysis;
   }
 
   private buildPrompt(post: {
@@ -639,6 +687,53 @@ export class BizAiService {
       return fallback;
     }
     return Math.floor(parsed);
+  }
+
+  private throwIfShuttingDown() {
+    if (this.isShuttingDown) {
+      throw new Error("Shutdown requested");
+    }
+  }
+
+  private async requeueJobDuringShutdown(
+    job: { id: string; post_id: string | null },
+    message: string,
+  ) {
+    await this.prisma.biz_analysis_job
+      .update({
+        where: { id: job.id },
+        data: {
+          status: "queued",
+          started_at: null,
+          finished_at: null,
+          error_message: message,
+        },
+      })
+      .catch((error) => {
+        this.logger.warn(
+          `Failed to requeue AI job ${job.id} during shutdown: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+
+    if (job.post_id) {
+      await this.prisma.biz_post
+        .update({
+          where: { id: job.post_id },
+          data: {
+            analysis_state: "ai_queued",
+            analysis_error: null,
+          },
+        })
+        .catch((error) => {
+          this.logger.warn(
+            `Failed to reset post ${job.post_id} during shutdown: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        });
+    }
   }
 
   private async mapWithConcurrency<T, R>(

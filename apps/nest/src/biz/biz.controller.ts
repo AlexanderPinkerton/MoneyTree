@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
   NotFoundException,
@@ -7,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 
 import { JwtAuthGuard } from "../auth/guards/jwt.auth.guard";
 import { PrismaService } from "../prisma/prisma.service";
@@ -199,66 +202,121 @@ export class BizController {
 
   @Get("corpus/overview")
   async getCorpusOverview() {
-    const [
-      totalThreads,
-      totalPosts,
-      analysisGroups,
-      stanceGroups,
-      securityGroups,
-      tagGroups,
-      recentPosts,
-    ] = await this.prisma.$transaction([
-      this.prisma.biz_thread.count(),
-      this.prisma.biz_post.count(),
-      this.prisma.biz_post.groupBy({
-        by: ["analysis_state"],
-        _count: { _all: true },
-        orderBy: { analysis_state: "asc" },
-      }),
-      this.prisma.biz_security_mention.groupBy({
-        by: ["stance"],
-        _count: { _all: true },
-        orderBy: { stance: "asc" },
-      }),
-      this.prisma.biz_security_mention.groupBy({
-        by: ["symbol"],
-        _count: { _all: true },
-        orderBy: { _count: { symbol: "desc" } },
-        take: 20,
-      }),
-      this.prisma.biz_post_tag.groupBy({
-        by: ["value"],
-        where: { tag_type: { in: ["subject", "ai_tag", "security"] } },
-        _count: { _all: true },
-        orderBy: { _count: { value: "desc" } },
-        take: 30,
-      }),
-      this.prisma.biz_post.findMany({
+    const recentWindowStartedAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    let windowLabel = "Recent 24h";
+    let windowStartedAt: Date | null = recentWindowStartedAt;
+    let recentPosts = await this.prisma.biz_post.findMany({
+      where: { posted_at: { gte: recentWindowStartedAt } },
+      orderBy: { posted_at: "desc" },
+      take: 500,
+      include: {
+        thread: true,
+        tags: { orderBy: { created_at: "asc" } },
+        security_mentions: { orderBy: { created_at: "asc" } },
+      },
+    });
+
+    if (recentPosts.length < 25) {
+      windowLabel = "Latest 500 posts";
+      windowStartedAt = null;
+      recentPosts = await this.prisma.biz_post.findMany({
         orderBy: { posted_at: "desc" },
-        take: 80,
+        take: 500,
         include: {
           thread: true,
           tags: { orderBy: { created_at: "asc" } },
           security_mentions: { orderBy: { created_at: "asc" } },
         },
-      }),
-    ]);
+      });
+    }
+
+    const analysisCounts = this.countBy(recentPosts, "analysis_state");
+    const stanceCounts = this.countMentionStances(recentPosts);
+    const termBlacklist = await this.getTermBlacklistEntries();
+    const blacklistedTerms = new Set(
+      termBlacklist.map((entry) => entry.normalized_term),
+    );
+    const trendingSecurities = this.extractTrendingSecurities(recentPosts);
+    const topSubjects = this.applyTermBlacklist(
+      this.extractTopSubjects(recentPosts),
+      blacklistedTerms,
+    );
+    const topTags = this.applyTermBlacklist(
+      this.extractTopTags(recentPosts),
+      blacklistedTerms,
+    );
+    const terminologyTerms = this.extractTerminologyTerms(
+      recentPosts,
+      this.buildStructuredTermExclusions(recentPosts, blacklistedTerms),
+    );
+    const evidencePosts = this.pickSignalEvidencePosts(recentPosts);
 
     return {
       generated_at: new Date().toISOString(),
-      total_threads: totalThreads,
-      total_posts: totalPosts,
-      analysis_counts: this.countMap(analysisGroups, "analysis_state"),
-      stance_counts: this.countMap(stanceGroups, "stance"),
-      top_securities: securityGroups.map((group) =>
-        this.term(group.symbol, this.groupCount(group)),
-      ),
-      top_tags: tagGroups.map((group) =>
-        this.term(group.value, this.groupCount(group)),
-      ),
-      heatmap_terms: this.extractHeatmapTerms(recentPosts),
-      recent_posts: recentPosts.slice(0, 20).map((post) => this.mapPost(post)),
+      window_label: windowLabel,
+      window_started_at: windowStartedAt?.toISOString() ?? null,
+      total_threads: new Set(recentPosts.map((post) => post.thread_no)).size,
+      total_posts: recentPosts.length,
+      analysis_counts: analysisCounts,
+      stance_counts: stanceCounts,
+      top_securities: trendingSecurities
+        .slice(0, 20)
+        .map((security) =>
+          this.term(
+            security.symbol,
+            security.count,
+            security.weight,
+            "security",
+          ),
+        ),
+      top_tags: topTags,
+      top_subjects: topSubjects,
+      signal_terms: terminologyTerms,
+      term_blacklist: termBlacklist,
+      trending_securities: trendingSecurities,
+      heatmap_terms: terminologyTerms,
+      recent_posts: evidencePosts
+        .slice(0, 20)
+        .map((post) => this.mapPost(post)),
     };
+  }
+
+  @Get("corpus/term-blacklist")
+  async getTermBlacklist() {
+    return this.getTermBlacklistEntries();
+  }
+
+  @Post("corpus/term-blacklist")
+  async addTermBlacklist(@Body() body: { term?: string }) {
+    const term = body.term?.trim();
+    const normalizedTerm = this.normalizeSignalTerm(term ?? "");
+    if (!term || !normalizedTerm || this.isNoiseTerm(normalizedTerm)) {
+      throw new BadRequestException("Blacklist term is empty or invalid");
+    }
+
+    await this.prisma.$executeRaw`
+      INSERT INTO "biz_term_blacklist" ("id", "term", "normalized_term", "updated_at")
+      VALUES (${randomUUID()}, ${term}, ${normalizedTerm}, CURRENT_TIMESTAMP)
+      ON CONFLICT ("normalized_term") DO UPDATE
+      SET "term" = EXCLUDED."term", "updated_at" = CURRENT_TIMESTAMP
+    `;
+
+    return this.getTermBlacklistEntries();
+  }
+
+  @Post("corpus/term-blacklist/remove")
+  async removeTermBlacklist(@Body() body: { term?: string }) {
+    const normalizedTerm = this.normalizeSignalTerm(body.term ?? "");
+    if (!normalizedTerm) {
+      throw new BadRequestException("Blacklist term is empty");
+    }
+
+    await this.prisma.$executeRaw`
+      DELETE FROM "biz_term_blacklist"
+      WHERE "normalized_term" = ${normalizedTerm}
+    `;
+
+    return this.getTermBlacklistEntries();
   }
 
   @Get("securities/:symbol/summary")
@@ -608,8 +666,40 @@ export class BizController {
     return Number(group?._count?._all ?? 0);
   }
 
-  private term(value: string, count: number) {
-    return { value, count, weight: count };
+  private term(value: string, count: number, weight = count, kind?: string) {
+    return { value, count, weight, kind };
+  }
+
+  private async getTermBlacklistEntries() {
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        term: string;
+        normalized_term: string;
+        created_at: Date;
+        updated_at: Date;
+      }>
+    >`
+      SELECT "id", "term", "normalized_term", "created_at", "updated_at"
+      FROM "biz_term_blacklist"
+      ORDER BY "created_at" DESC
+    `;
+
+    return rows.map((row) => ({
+      ...row,
+      created_at: row.created_at.toISOString(),
+      updated_at: row.updated_at.toISOString(),
+    }));
+  }
+
+  private applyTermBlacklist<T extends { value: string }>(
+    terms: T[],
+    blacklistedTerms: Set<string>,
+  ) {
+    if (blacklistedTerms.size === 0) return terms;
+    return terms.filter(
+      (term) => !blacklistedTerms.has(this.normalizeSignalTerm(term.value)),
+    );
   }
 
   private combineAnalysisStatus(triage: any, ai: any) {
@@ -655,7 +745,454 @@ export class BizController {
     };
   }
 
-  private extractHeatmapTerms(posts: Array<{ clean_text: string }>) {
+  private countBy(posts: any[], key: string) {
+    const counts: Record<string, number> = {};
+    for (const post of posts) {
+      const value = post[key] ?? "unknown";
+      counts[value] = (counts[value] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  private countMentionStances(posts: any[]) {
+    const counts: Record<string, number> = {
+      bullish: 0,
+      bearish: 0,
+      neutral: 0,
+      mixed: 0,
+    };
+
+    for (const post of posts) {
+      for (const mention of post.security_mentions ?? []) {
+        counts[mention.stance] = (counts[mention.stance] ?? 0) + 1;
+      }
+    }
+
+    return counts;
+  }
+
+  private extractTrendingSecurities(posts: any[]) {
+    const securities = new Map<
+      string,
+      {
+        symbol: string;
+        count: number;
+        bullish: number;
+        bearish: number;
+        neutral: number;
+        mixed: number;
+        threads: Set<number>;
+      }
+    >();
+
+    for (const post of posts) {
+      for (const mention of post.security_mentions ?? []) {
+        const symbol = String(mention.symbol ?? "").toUpperCase();
+        if (!symbol) continue;
+        const current = securities.get(symbol) ?? {
+          symbol,
+          count: 0,
+          bullish: 0,
+          bearish: 0,
+          neutral: 0,
+          mixed: 0,
+          threads: new Set<number>(),
+        };
+        current.count++;
+        current.threads.add(post.thread_no);
+        current[mention.stance as "bullish" | "bearish" | "neutral" | "mixed"] =
+          (current[
+            mention.stance as "bullish" | "bearish" | "neutral" | "mixed"
+          ] ?? 0) + 1;
+        securities.set(symbol, current);
+      }
+    }
+
+    return [...securities.values()]
+      .map(({ threads, ...security }) => ({
+        ...security,
+        weight: security.count * 4 + threads.size * 3,
+      }))
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 20);
+  }
+
+  private extractTopSubjects(posts: any[]) {
+    const subjects = new Map<string, { count: number; threads: Set<number> }>();
+    for (const post of posts) {
+      for (const tag of post.tags ?? []) {
+        if (tag.tag_type !== "subject") continue;
+        const value = this.normalizeSignalTerm(tag.value);
+        if (!value || value === "not_market_relevant") continue;
+        const current = subjects.get(value) ?? {
+          count: 0,
+          threads: new Set<number>(),
+        };
+        current.count++;
+        current.threads.add(post.thread_no);
+        subjects.set(value, current);
+      }
+    }
+
+    return [...subjects.entries()]
+      .map(([value, stats]) =>
+        this.term(
+          value,
+          stats.count,
+          stats.count * 2 + stats.threads.size,
+          "subject",
+        ),
+      )
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 12);
+  }
+
+  private extractTopTags(posts: any[]) {
+    const tags = new Map<string, { count: number; threads: Set<number> }>();
+    for (const post of posts) {
+      for (const tag of post.tags ?? []) {
+        if (!["ai_tag", "security"].includes(tag.tag_type)) continue;
+        const value = this.normalizeSignalTerm(tag.value);
+        if (!value || this.isNoiseTerm(value)) continue;
+        const current = tags.get(value) ?? {
+          count: 0,
+          threads: new Set<number>(),
+        };
+        current.count++;
+        current.threads.add(post.thread_no);
+        tags.set(value, current);
+      }
+    }
+
+    return [...tags.entries()]
+      .map(([value, stats]) =>
+        this.term(
+          value,
+          stats.count,
+          stats.count * 2 + stats.threads.size,
+          "tag",
+        ),
+      )
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 30);
+  }
+
+  private extractSignalTerms(posts: any[]) {
+    const terms = new Map<
+      string,
+      {
+        value: string;
+        count: number;
+        weight: number;
+        kind: string;
+        threads: Set<number>;
+      }
+    >();
+    const addTerm = (
+      rawValue: string,
+      kind: "security" | "tag" | "subject" | "phrase" | "term",
+      weight: number,
+      threadNo: number,
+    ) => {
+      const value =
+        kind === "security"
+          ? rawValue.trim().toUpperCase()
+          : this.normalizeSignalTerm(rawValue);
+      if (!value || this.isNoiseTerm(value)) return;
+      const current = terms.get(value) ?? {
+        value,
+        count: 0,
+        weight: 0,
+        kind,
+        threads: new Set<number>(),
+      };
+      current.count++;
+      current.weight += weight;
+      current.threads.add(threadNo);
+      terms.set(value, current);
+    };
+
+    for (const post of posts) {
+      for (const mention of post.security_mentions ?? []) {
+        addTerm(mention.symbol, "security", 7, post.thread_no);
+      }
+
+      for (const tag of post.tags ?? []) {
+        if (tag.tag_type === "subject") {
+          addTerm(tag.value, "subject", 4, post.thread_no);
+        } else if (tag.tag_type === "ai_tag" || tag.tag_type === "security") {
+          addTerm(tag.value, "tag", 3, post.thread_no);
+        }
+      }
+
+      for (const phrase of this.extractFinancePhrases(post.clean_text ?? "")) {
+        addTerm(phrase, "phrase", 2.5, post.thread_no);
+      }
+
+      for (const token of this.extractFinanceTokens(post.clean_text ?? "")) {
+        addTerm(token, "term", 1, post.thread_no);
+      }
+    }
+
+    return [...terms.values()]
+      .map(({ threads, ...term }) => ({
+        ...term,
+        weight: Math.round((term.weight + threads.size * 2) * 10) / 10,
+      }))
+      .filter((term) => term.count > 1 || term.kind === "security")
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 40);
+  }
+
+  private buildStructuredTermExclusions(
+    posts: any[],
+    blacklistedTerms = new Set<string>(),
+  ) {
+    const excluded = new Set<string>();
+    for (const term of blacklistedTerms) {
+      excluded.add(term);
+    }
+
+    for (const post of posts) {
+      for (const mention of post.security_mentions ?? []) {
+        const symbol = String(mention.symbol ?? "");
+        excluded.add(symbol.toLowerCase());
+        excluded.add(`$${symbol.toLowerCase()}`);
+      }
+
+      for (const tag of post.tags ?? []) {
+        if (!["subject", "ai_tag", "security"].includes(tag.tag_type)) {
+          continue;
+        }
+        const normalized = this.normalizeSignalTerm(tag.value);
+        if (normalized) excluded.add(normalized);
+      }
+    }
+
+    for (const subject of [
+      "crypto",
+      "equities",
+      "macro",
+      "options",
+      "security",
+    ]) {
+      excluded.add(subject);
+    }
+
+    return excluded;
+  }
+
+  private extractTerminologyTerms(posts: any[], excludedTerms: Set<string>) {
+    const terms = new Map<
+      string,
+      {
+        value: string;
+        count: number;
+        weight: number;
+        threads: Set<number>;
+        kind: string;
+      }
+    >();
+    const addTerm = (
+      rawValue: string,
+      kind: "phrase" | "term",
+      threadNo: number,
+    ) => {
+      const value = this.normalizeSignalTerm(rawValue);
+      if (
+        !value ||
+        excludedTerms.has(value) ||
+        this.isTerminologyNoise(value)
+      ) {
+        return;
+      }
+      const current = terms.get(value) ?? {
+        value,
+        count: 0,
+        weight: 0,
+        threads: new Set<number>(),
+        kind,
+      };
+      current.count++;
+      current.weight += kind === "phrase" ? 2.2 : 1;
+      current.threads.add(threadNo);
+      terms.set(value, current);
+    };
+
+    for (const post of posts) {
+      const tokens = this.extractTerminologyTokens(
+        post.clean_text ?? "",
+        excludedTerms,
+      );
+      for (const token of tokens) {
+        addTerm(token, "term", post.thread_no);
+      }
+
+      for (const phrase of this.extractTerminologyPhrases(tokens)) {
+        addTerm(phrase, "phrase", post.thread_no);
+      }
+    }
+
+    return [...terms.values()]
+      .map(({ threads, ...term }) => ({
+        ...term,
+        weight: Math.round((term.weight + threads.size * 2.5) * 10) / 10,
+      }))
+      .filter((term) => term.count >= 3 || term.weight >= 7)
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 40);
+  }
+
+  private extractTerminologyTokens(text: string, excludedTerms: Set<string>) {
+    const stripped = text
+      .toLowerCase()
+      .replace(/https?:\/\/\S+/g, " ")
+      .replace(/>>\d+/g, " ")
+      .replace(/\$[a-z]{1,8}\b/g, " ")
+      .replace(/[^a-z0-9\s-]/g, " ");
+    const tokens = stripped.match(/\b[a-z][a-z0-9-]{2,20}\b/g) ?? [];
+
+    return tokens
+      .map((token) => this.normalizeSignalTerm(token))
+      .filter(
+        (token) =>
+          token && !excludedTerms.has(token) && !this.isTerminologyNoise(token),
+      );
+  }
+
+  private extractTerminologyPhrases(tokens: string[]) {
+    const phrases: string[] = [];
+    for (let index = 0; index < tokens.length - 1; index++) {
+      const twoWord = `${tokens[index]} ${tokens[index + 1]}`;
+      if (!this.isTerminologyNoise(twoWord)) phrases.push(twoWord);
+    }
+
+    for (let index = 0; index < tokens.length - 2; index++) {
+      const threeWord = `${tokens[index]} ${tokens[index + 1]} ${tokens[index + 2]}`;
+      if (!this.isTerminologyNoise(threeWord)) phrases.push(threeWord);
+    }
+
+    return phrases;
+  }
+
+  private pickSignalEvidencePosts(posts: any[]) {
+    return [...posts]
+      .map((post) => ({
+        post,
+        score:
+          (post.security_mentions?.length ?? 0) * 5 +
+          (post.tags?.filter((tag: any) =>
+            ["subject", "ai_tag", "security"].includes(tag.tag_type),
+          ).length ?? 0) *
+            2,
+      }))
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          b.post.posted_at.getTime() - a.post.posted_at.getTime(),
+      )
+      .map(({ post }) => post);
+  }
+
+  private extractFinancePhrases(text: string) {
+    const lower = text.toLowerCase();
+    const phrases = [
+      "rate cuts",
+      "rate hike",
+      "interest rates",
+      "money printer",
+      "short squeeze",
+      "gamma squeeze",
+      "market maker",
+      "bull market",
+      "bear market",
+      "price target",
+      "earnings call",
+      "buy calls",
+      "buy puts",
+      "sell puts",
+      "covered calls",
+      "all time high",
+      "new ath",
+      "support level",
+      "resistance level",
+      "breakout",
+      "recession",
+      "inflation",
+      "cpi print",
+      "fed meeting",
+      "spot etf",
+      "liquidation",
+      "open interest",
+    ];
+
+    return phrases.filter((phrase) => lower.includes(phrase));
+  }
+
+  private extractFinanceTokens(text: string) {
+    const financeWords = new Set([
+      "calls",
+      "puts",
+      "short",
+      "long",
+      "pump",
+      "dump",
+      "moon",
+      "rally",
+      "crash",
+      "breakout",
+      "support",
+      "resistance",
+      "earnings",
+      "inflation",
+      "recession",
+      "fed",
+      "rates",
+      "cpi",
+      "fomc",
+      "yield",
+      "bonds",
+      "options",
+      "leverage",
+      "liquidation",
+      "whales",
+      "volume",
+      "volatility",
+      "ath",
+      "dip",
+      "bags",
+      "accumulate",
+      "miners",
+      "etf",
+      "memecoin",
+      "stablecoin",
+    ]);
+    const tokens = new Set<string>();
+
+    for (const match of text.matchAll(/\$([A-Za-z]{1,8})(?![A-Za-z])/g)) {
+      tokens.add(match[1].toUpperCase());
+    }
+
+    for (const match of text.toLowerCase().match(/\b[a-z][a-z0-9]{2,18}\b/g) ??
+      []) {
+      if (financeWords.has(match) && !this.isNoiseTerm(match)) {
+        tokens.add(match);
+      }
+    }
+
+    return [...tokens];
+  }
+
+  private normalizeSignalTerm(value: string) {
+    return String(value ?? "")
+      .toLowerCase()
+      .replace(/[_-]+/g, " ")
+      .replace(/[^a-z0-9$ ]+/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  private isNoiseTerm(value: string) {
     const stop = new Set([
       "the",
       "and",
@@ -677,22 +1214,175 @@ export class BizController {
       "where",
       "money",
       "anon",
+      "anonymous",
+      "thread",
+      "post",
+      "posts",
+      "reply",
+      "replies",
+      "image",
+      "jpg",
+      "png",
+      "webm",
+      "https",
+      "http",
+      "com",
+      "www",
+      "lol",
+      "lmao",
+      "kek",
+      "based",
+      "bro",
+      "bros",
+      "shit",
+      "fuck",
+      "fucking",
+      "people",
+      "think",
+      "know",
+      "like",
+      "going",
+      "really",
+      "still",
+      "even",
+      "only",
+      "because",
+      "there",
+      "their",
+      "then",
+      "than",
+      "been",
+      "would",
+      "could",
+      "should",
+      "make",
+      "made",
+      "much",
+      "more",
+      "some",
+      "very",
+      "about",
     ]);
-    const counts = new Map<string, number>();
+    const normalized = this.normalizeSignalTerm(value);
+    return (
+      normalized.length < 3 ||
+      stop.has(normalized) ||
+      /^p?\d+$/.test(normalized) ||
+      /^x+$/.test(normalized)
+    );
+  }
 
-    for (const post of posts) {
-      for (const word of post.clean_text
-        .toLowerCase()
-        .match(/\b[a-z0-9$]{3,16}\b/g) ?? []) {
-        if (stop.has(word)) continue;
-        counts.set(word, (counts.get(word) ?? 0) + 1);
-      }
-    }
+  private isTerminologyNoise(value: string) {
+    const normalized = this.normalizeSignalTerm(value);
+    if (this.isNoiseTerm(normalized)) return true;
 
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 40)
-      .map(([value, count]) => this.term(value, count));
+    const words = normalized.split(" ").filter(Boolean);
+    if (words.length === 0 || words.length > 3) return true;
+
+    const stop = new Set([
+      "all",
+      "also",
+      "any",
+      "anyone",
+      "anything",
+      "back",
+      "being",
+      "better",
+      "cant",
+      "did",
+      "didnt",
+      "does",
+      "doesnt",
+      "doing",
+      "done",
+      "dont",
+      "down",
+      "every",
+      "everyone",
+      "everything",
+      "getting",
+      "give",
+      "good",
+      "got",
+      "has",
+      "hasnt",
+      "having",
+      "her",
+      "here",
+      "him",
+      "his",
+      "how",
+      "ill",
+      "into",
+      "its",
+      "keep",
+      "let",
+      "look",
+      "maybe",
+      "need",
+      "never",
+      "now",
+      "off",
+      "one",
+      "our",
+      "out",
+      "over",
+      "own",
+      "please",
+      "right",
+      "same",
+      "see",
+      "she",
+      "something",
+      "sure",
+      "take",
+      "these",
+      "thing",
+      "things",
+      "those",
+      "through",
+      "time",
+      "too",
+      "try",
+      "two",
+      "use",
+      "want",
+      "was",
+      "way",
+      "well",
+      "were",
+      "who",
+      "why",
+      "won",
+      "wont",
+      "yes",
+      "yet",
+    ]);
+
+    if (words.every((word) => stop.has(word))) return true;
+    if (words.length > 1 && words.some((word) => word.length < 3)) return true;
+
+    const genericPhrases = new Set([
+      "you are",
+      "you can",
+      "you have",
+      "you know",
+      "this is",
+      "that is",
+      "there is",
+      "going to",
+      "want to",
+      "need to",
+      "have to",
+      "looks like",
+      "feels like",
+      "right now",
+      "all in",
+      "just buy",
+      "just sell",
+    ]);
+
+    return genericPhrases.has(normalized);
   }
 
   private serializeDates<T extends Record<string, any>>(value: T): T {

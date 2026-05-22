@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationShutdown } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { Prisma } from "@prisma/client";
 
@@ -28,10 +28,15 @@ type IngestCounters = {
 };
 
 @Injectable()
-export class BizIngestService {
+export class BizIngestService implements OnApplicationShutdown {
   private readonly logger = new Logger(BizIngestService.name);
   private isRunning = false;
+  private isShuttingDown = false;
   private lastRequestAt = 0;
+  private activeRunId: string | null = null;
+  private activeFetchAbortController: AbortController | null = null;
+  private throttleTimeout: ReturnType<typeof setTimeout> | null = null;
+  private resolveThrottle: (() => void) | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -44,7 +49,46 @@ export class BizIngestService {
     await this.runIngest("cron");
   }
 
+  async onApplicationShutdown(signal?: string) {
+    this.isShuttingDown = true;
+    this.logger.warn(
+      `Stopping /${BOARD}/ ingest${signal ? ` after ${signal}` : ""}`,
+    );
+
+    this.activeFetchAbortController?.abort();
+    if (this.throttleTimeout) {
+      clearTimeout(this.throttleTimeout);
+      this.throttleTimeout = null;
+    }
+    this.resolveThrottle?.();
+    this.resolveThrottle = null;
+
+    if (this.activeRunId) {
+      await this.prisma.biz_ingest_run
+        .update({
+          where: { id: this.activeRunId },
+          data: {
+            status: "failed",
+            finished_at: new Date(),
+            error_message: "Shutdown requested",
+          },
+        })
+        .catch((error) => {
+          this.logger.warn(
+            `Failed to mark ingest ${this.activeRunId} stopped: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        });
+    }
+  }
+
   async runIngest(trigger: "cron" | "manual" = "manual") {
+    if (this.isShuttingDown) {
+      this.logger.warn(`Skipping ${trigger} ingest because shutdown is active`);
+      return null;
+    }
+
     if (this.isRunning) {
       this.logger.warn(
         `Skipping ${trigger} ingest because another run is active`,
@@ -56,6 +100,7 @@ export class BizIngestService {
     const run = await this.prisma.biz_ingest_run.create({
       data: { status: "running" },
     });
+    this.activeRunId = run.id;
 
     const counters: IngestCounters = {
       catalog_threads: 0,
@@ -83,6 +128,7 @@ export class BizIngestService {
         counters,
         `Fetching /${BOARD}/ catalog`,
       );
+      this.throwIfShuttingDown();
       const catalogResult = await this.fetchWithState<FourChanCatalogPage[]>(
         `${BOARD}:catalog`,
         `${API_BASE}/${BOARD}/catalog.json`,
@@ -150,6 +196,7 @@ export class BizIngestService {
       );
 
       for (const catalogThread of changedThreads) {
+        this.throwIfShuttingDown();
         counters.threads_checked++;
         if (
           counters.threads_checked === 1 ||
@@ -193,6 +240,7 @@ export class BizIngestService {
         }
       }
 
+      this.throwIfShuttingDown();
       this.emitProgress(
         run.id,
         "analysis_queued",
@@ -232,10 +280,14 @@ export class BizIngestService {
       throw error;
     } finally {
       this.isRunning = false;
+      if (this.activeRunId === run.id) {
+        this.activeRunId = null;
+      }
     }
   }
 
   private async ingestThread(threadNo: number) {
+    this.throwIfShuttingDown();
     const threadUrl = `${API_BASE}/${BOARD}/thread/${threadNo}.json`;
     const result = await this.fetchWithState<FourChanThreadResponse>(
       `${BOARD}:thread:${threadNo}`,
@@ -296,6 +348,7 @@ export class BizIngestService {
     let updatedPosts = 0;
 
     for (const rawPost of posts) {
+      this.throwIfShuttingDown();
       const normalized = this.processing.normalizePost(rawPost, threadNo);
       const existingPost = await this.prisma.biz_post.findUnique({
         where: { post_no: normalized.postNo },
@@ -361,6 +414,7 @@ export class BizIngestService {
     resourceKey: string,
     resourceUrl: string,
   ): Promise<FetchJsonResult<T>> {
+    this.throwIfShuttingDown();
     const state = await this.prisma.biz_fetch_state.upsert({
       where: { resource_key: resourceKey },
       update: { resource_url: resourceUrl, last_checked_at: new Date() },
@@ -372,13 +426,17 @@ export class BizIngestService {
     });
 
     await this.throttle();
+    this.throwIfShuttingDown();
 
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), FETCH_TIMEOUT_MS);
+    this.activeFetchAbortController = abortController;
     try {
       const response = await fetch(resourceUrl, {
         headers: state.last_modified_header
           ? { "If-Modified-Since": state.last_modified_header }
           : undefined,
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        signal: abortController.signal,
       });
 
       if (response.status === 304) {
@@ -414,7 +472,11 @@ export class BizIngestService {
 
       return { status: "ok", data, lastModified };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = this.isShuttingDown
+        ? "Shutdown requested"
+        : error instanceof Error
+          ? error.message
+          : String(error);
       await this.prisma.biz_fetch_state.update({
         where: { resource_key: resourceKey },
         data: {
@@ -423,18 +485,36 @@ export class BizIngestService {
         },
       });
       return { status: "error", errorMessage: message };
+    } finally {
+      clearTimeout(timeout);
+      if (this.activeFetchAbortController === abortController) {
+        this.activeFetchAbortController = null;
+      }
     }
   }
 
   private async throttle() {
+    this.throwIfShuttingDown();
     const now = Date.now();
     const elapsed = now - this.lastRequestAt;
     if (elapsed < REQUEST_DELAY_MS) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, REQUEST_DELAY_MS - elapsed),
-      );
+      await new Promise<void>((resolve) => {
+        this.resolveThrottle = resolve;
+        this.throttleTimeout = setTimeout(() => {
+          this.throttleTimeout = null;
+          this.resolveThrottle = null;
+          resolve();
+        }, REQUEST_DELAY_MS - elapsed);
+      });
     }
+    this.throwIfShuttingDown();
     this.lastRequestAt = Date.now();
+  }
+
+  private throwIfShuttingDown() {
+    if (this.isShuttingDown) {
+      throw new Error("Shutdown requested");
+    }
   }
 
   private toJson(value: unknown): Prisma.InputJsonValue {

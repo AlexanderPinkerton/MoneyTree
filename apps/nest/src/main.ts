@@ -20,6 +20,44 @@ async function bootstrap() {
     },
   );
 
+  const shutdownTimeoutMs = Number(
+    process.env.NEST_SHUTDOWN_TIMEOUT_MS ?? 5000,
+  );
+  let shutdownStarted = false;
+  const shutdown = (signal: NodeJS.Signals) => {
+    if (shutdownStarted) {
+      console.warn(`Received ${signal} again; force exiting.`);
+      process.exit(1);
+    }
+
+    shutdownStarted = true;
+    console.log(`Received ${signal}; closing Nest app...`);
+
+    const timeout = setTimeout(() => {
+      console.error(
+        `Nest app did not close within ${shutdownTimeoutMs}ms; force exiting.`,
+      );
+      process.exit(1);
+    }, shutdownTimeoutMs);
+    timeout.unref();
+
+    void app
+      .close()
+      .then(() => {
+        clearTimeout(timeout);
+        console.log("Nest app closed.");
+        process.exit(0);
+      })
+      .catch((error) => {
+        clearTimeout(timeout);
+        console.error("Nest app failed to close cleanly.", error);
+        process.exit(1);
+      });
+  };
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+
   // Hybrid CORS configuration:
   // - Production: Strict CORS (only production frontend URL)
   // - Dev/Staging: Flexible CORS (Vercel previews + local dev)
