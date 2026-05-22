@@ -19,7 +19,11 @@ interface ConnectXModalProps {
   onSubmit: (creds: { auth_token: string; ct0: string }) => Promise<void>;
 }
 
-export function ConnectXModal({ open, onOpenChange, onSubmit }: ConnectXModalProps) {
+export function ConnectXModal({
+  open,
+  onOpenChange,
+  onSubmit,
+}: ConnectXModalProps) {
   const [authToken, setAuthToken] = useState("");
   const [ct0, setCt0] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -35,7 +39,9 @@ export function ConnectXModal({ open, onOpenChange, onSubmit }: ConnectXModalPro
       setCt0("");
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not validate cookies");
+      setError(
+        err instanceof Error ? err.message : "Could not validate cookies",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -48,8 +54,14 @@ export function ConnectXModal({ open, onOpenChange, onSubmit }: ConnectXModalPro
           <DialogTitle>Connect your X (Twitter) account</DialogTitle>
           <DialogDescription>
             We use your browser cookies to fetch tweets via the{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">bird</code> CLI.
-            Cookies stay private to your account.
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">bird</code>{" "}
+            CLI. The Nest server must have{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">bird</code>{" "}
+            installed or
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">
+              BIRD_BIN
+            </code>{" "}
+            set. Cookies stay private to your account.
           </DialogDescription>
         </DialogHeader>
 
@@ -68,10 +80,12 @@ export function ConnectXModal({ open, onOpenChange, onSubmit }: ConnectXModalPro
               and make sure you&apos;re logged in.
             </li>
             <li>
-              Open browser DevTools → Application → Cookies → <code>https://x.com</code>.
+              Open browser DevTools → Application → Cookies →{" "}
+              <code>https://x.com</code>.
             </li>
             <li>
-              Copy the values for <code>auth_token</code> and <code>ct0</code> and paste below.
+              Copy the values for <code>auth_token</code> and <code>ct0</code>{" "}
+              and paste below.
             </li>
           </ol>
         </div>

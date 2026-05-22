@@ -1,10 +1,12 @@
 import { Logger } from "@nestjs/common";
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
 const execFileP = promisify(execFile);
 
-const BIRD_BIN = process.env.BIRD_BIN ?? "/opt/homebrew/bin/bird";
+const BIRD_BIN = process.env.BIRD_BIN ?? resolveBirdBin();
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export interface BirdCreds {
@@ -28,6 +30,25 @@ export class BirdError extends Error {
 }
 
 const logger = new Logger("BirdRunner");
+
+function resolveBirdBin() {
+  let directory = process.cwd();
+  while (true) {
+    const candidate = join(directory, "node_modules", ".bin", "bird");
+    if (existsSync(candidate)) return candidate;
+
+    const parent = dirname(directory);
+    if (parent === directory) return "bird";
+    directory = parent;
+  }
+}
+
+function formatBirdInvocationError(err: any) {
+  if (err?.code === "ENOENT") {
+    return `bird CLI not found at "${BIRD_BIN}". Run yarn install or set BIRD_BIN to the executable path.`;
+  }
+  return err?.message ?? "bird invocation failed";
+}
 
 function authFlags(creds: BirdCreds): string[] {
   return [
@@ -61,7 +82,7 @@ export async function birdJson<T = unknown>(
     const stderr = err?.stderr?.toString?.() ?? "";
     logger.warn(`bird ${args.join(" ")} failed: ${err?.message}`);
     throw new BirdError(
-      err?.message ?? "bird invocation failed",
+      formatBirdInvocationError(err),
       stderr,
       err?.code ?? null,
     );
@@ -84,7 +105,7 @@ export async function birdRaw(
   } catch (err: any) {
     const stderr = err?.stderr?.toString?.() ?? "";
     throw new BirdError(
-      err?.message ?? "bird invocation failed",
+      formatBirdInvocationError(err),
       stderr,
       err?.code ?? null,
     );
