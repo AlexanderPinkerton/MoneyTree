@@ -62,3 +62,12 @@ dist/
 # TypeScript build info
 *.tsbuildinfo
 .vercel
+
+# Playwright (MCP server traces + standard @playwright/test outputs)
+.playwright-mcp/
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Ad-hoc Playwright screenshots saved at the repo root by browser_take_screenshot
+/*.png

@@ -11,7 +11,10 @@ import { Socket, Server } from "socket.io";
 import { JwtService } from "@nestjs/jwt";
 import { Injectable, Logger } from "@nestjs/common";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import type { BizRealtimeEventDto } from "@moneytree/shared";
+import type {
+  BizRealtimeEventDto,
+  XRealtimeEventDto,
+} from "@moneytree/shared";
 
 interface RegisterPayload {
   token: string;
@@ -251,6 +254,13 @@ export class RealtimeGateway
   public broadcastBizUpdate(payload: BizRealtimeEventDto) {
     this.logger.log(
       `Broadcasting biz update: ${payload.event} - ${payload.new_posts ?? 0} new posts`,
+    );
+    this.broadcastToAllClients(payload);
+  }
+
+  public broadcastXUpdate(payload: XRealtimeEventDto) {
+    this.logger.log(
+      `Broadcasting x update: ${payload.event} - ${payload.new_tweets ?? 0} new tweets`,
     );
     this.broadcastToAllClients(payload);
   }

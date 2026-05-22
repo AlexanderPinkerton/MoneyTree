@@ -48,6 +48,8 @@ import type {
 import type { Socket } from "socket.io-client";
 
 import { AppNavbar } from "@/components/navbar/presets/app";
+import { SourceSwitcher } from "@/components/navbar/custom/source-switcher";
+import { TickerSymbol } from "@/components/ticker/ticker-symbol";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -642,7 +644,10 @@ export default function HomePage() {
   return (
     <div className="biz-workspace min-h-screen bg-background text-foreground">
       <AppNavbar className="border-b border-border bg-background/95 text-foreground" />
-      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 pb-8 pt-24">
+      <div className="pt-16">
+        <SourceSwitcher />
+      </div>
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 pb-8 pt-4">
         <section className="grid gap-3 border-b border-border pb-4 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <h1 className="text-2xl font-semibold tracking-normal">
@@ -1296,9 +1301,7 @@ function TrendingSecuritiesPanel({
                 className="grid gap-1 border border-border bg-card px-3 py-2 text-left hover:border-emerald-700/60"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-mono text-sm font-semibold text-emerald-300">
-                    {security.symbol}
-                  </span>
+                  <TickerSymbol symbol={security.symbol} />
                   <span className="text-xs text-muted-foreground">
                     {security.count} mentions
                   </span>
@@ -1567,8 +1570,10 @@ function PostArticle({
           <Badge
             key={mention.id}
             variant={mention.stance === "bearish" ? "destructive" : "secondary"}
+            className="inline-flex items-center gap-1.5"
           >
-            {mention.symbol} {mention.stance}
+            <TickerSymbol symbol={mention.symbol} size="sm" />
+            <span>{mention.stance}</span>
           </Badge>
         ))}
         {visibleTags.map((tag) => (

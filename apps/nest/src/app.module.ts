@@ -10,6 +10,8 @@ import { TodosModule } from "./todos/todos.module";
 import { CheckboxesModule } from "./checkboxes/checkboxes.module";
 import { RealtimeModule } from "./realtime/realtime.module";
 import { BizModule } from "./biz/biz.module";
+import { XModule } from "./x/x.module";
+import { HyperliquidModule } from "./hyperliquid/hyperliquid.module";
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { BizModule } from "./biz/biz.module";
     CheckboxesModule, // Checkbox CRUD operations
     RealtimeModule, // WebSocket realtime gateway
     BizModule, // /biz/ ingest, analysis, and search
+    XModule, // /x/ Twitter ingest, accounts, credentials
+    HyperliquidModule, // /hyperliquid/ perps market data
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -4,6 +4,7 @@
 // TODO: Consider using a bundler (esbuild, rollup, tsup) to handle this automatically.
 export * from "./post/PostDSS.js";
 export * from "./biz/BizDSS.js";
+export * from "./x/XDSS.js";
 export * from "./constants.js";
 export * from "./username/UsernameGenerator.js";
 export * from "./playground.js";

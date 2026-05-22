@@ -220,3 +220,116 @@ model biz_term_blacklist {
 
   @@index([created_at])
 }
+
+// ============================================================================
+// X (Twitter) workspace
+// ============================================================================
+
+model x_account {
+  id            String    @id @default(cuid())
+  handle        String    @unique
+  display_name  String?
+  label         String?
+  weight        Float     @default(0.5)
+  is_default    Boolean   @default(false)
+  is_active     Boolean   @default(true)
+  last_fetch_at DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  tweets        x_tweet[]
+
+  @@index([is_active])
+  @@index([is_default])
+}
+
+model x_tweet {
+  id                String              @id @default(cuid())
+  tweet_id          String              @unique
+  handle            String
+  account           x_account           @relation(fields: [handle], references: [handle], onDelete: Cascade)
+  text              String
+  likes             Int                 @default(0)
+  retweets          Int                 @default(0)
+  replies           Int                 @default(0)
+  views             Int?
+  is_retweet        Boolean             @default(false)
+  retweet_of        String?
+  reply_to          String?
+  url               String
+  posted_at         DateTime
+  raw_json          Json
+  media             Json?
+  analysis_state    String              @default("raw")
+  market_relevant   Boolean?
+  subject           String?
+  sentiment         String?
+  stance            String?
+  confidence        Float?
+  summary           String?
+  analyzed_at       DateTime?
+  analysis_model    String?
+  analysis_version  String?
+  analysis_error    String?
+  first_seen_at     DateTime            @default(now())
+  updated_at        DateTime            @updatedAt
+  security_mentions x_security_mention[]
+
+  @@index([handle])
+  @@index([posted_at])
+  @@index([first_seen_at])
+  @@index([analysis_state])
+  @@index([sentiment])
+}
+
+model x_security_mention {
+  id               String   @id @default(cuid())
+  tweet_id_db      String
+  tweet            x_tweet  @relation(fields: [tweet_id_db], references: [id], onDelete: Cascade)
+  tweet_id         String
+  handle           String
+  symbol           String
+  display_name     String?
+  asset_type       String?
+  sentiment        String
+  stance           String
+  confidence       Float    @default(0.5)
+  evidence_snippet String?
+  source           String
+  posted_at        DateTime
+  created_at       DateTime @default(now())
+
+  @@unique([tweet_id_db, symbol, source])
+  @@index([symbol])
+  @@index([stance])
+  @@index([sentiment])
+  @@index([handle])
+  @@index([posted_at])
+}
+
+model x_ingest_run {
+  id                 String    @id @default(cuid())
+  status             String
+  started_at         DateTime  @default(now())
+  finished_at        DateTime?
+  accounts_planned   Int       @default(0)
+  accounts_checked   Int       @default(0)
+  new_tweets         Int       @default(0)
+  error_count        Int       @default(0)
+  last_error_message String?
+  trigger            String?
+
+  @@index([started_at])
+  @@index([status])
+}
+
+model x_credentials {
+  id              String   @id @default(cuid())
+  user_id         String   @unique
+  auth_token      String
+  ct0             String
+  twitter_handle  String?
+  last_checked_at DateTime?
+  is_valid        Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+}
