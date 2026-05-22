@@ -39,8 +39,18 @@ export class BizController {
         posts: {
           orderBy: { posted_at: "desc" },
           take: 1,
-          select: { posted_at: true },
+          select: { post_no: true, posted_at: true },
         },
+      },
+    });
+    const threadPosts = await this.prisma.biz_post.findMany({
+      where: {
+        thread_no: { in: threads.map((thread) => thread.thread_no) },
+      },
+      select: {
+        thread_no: true,
+        post_no: true,
+        first_seen_at: true,
       },
     });
     const opPosts = await this.prisma.biz_post.findMany({
@@ -56,11 +66,31 @@ export class BizController {
     const attachmentsByThread = new Map(
       opPosts.map((post) => [post.thread_no, post.attachment]),
     );
+    const postsByThread = new Map<
+      number,
+      Array<{ post_no: number; first_seen_at: Date }>
+    >();
+    for (const post of threadPosts) {
+      const posts = postsByThread.get(post.thread_no) ?? [];
+      posts.push({
+        post_no: post.post_no,
+        first_seen_at: post.first_seen_at,
+      });
+      postsByThread.set(post.thread_no, posts);
+    }
 
     return threads.map((thread) => ({
       ...this.serializeDates(thread),
       post_count: thread._count.posts,
       latest_post_at: thread.posts[0]?.posted_at.toISOString() ?? null,
+      latest_post_no: thread.posts[0]?.post_no ?? null,
+      post_nos:
+        postsByThread.get(thread.thread_no)?.map((post) => post.post_no) ?? [],
+      post_refs:
+        postsByThread.get(thread.thread_no)?.map((post) => ({
+          post_no: post.post_no,
+          first_seen_at: post.first_seen_at.toISOString(),
+        })) ?? [],
       attachment: thread.active
         ? (attachmentsByThread.get(thread.thread_no) ?? null)
         : null,

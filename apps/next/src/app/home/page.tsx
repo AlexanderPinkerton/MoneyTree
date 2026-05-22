@@ -66,7 +66,8 @@ import { fetchWithAuth } from "@/lib/utils";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_NEST_BACKEND_URL || "http://localhost:3000";
-const READ_STATE_KEY = "moneytree.biz.readAtByThread";
+const LEGACY_READ_THREAD_STATE_KEY = "moneytree.biz.readAtByThread";
+const READ_POST_STATE_KEY = "moneytree.biz.readPostNos";
 const SCROLL_STATE_KEY = "moneytree.biz.scrollByThread";
 type ReaderMode = "thread" | "feed" | "corpus";
 type IngestProgress = {
@@ -116,10 +117,9 @@ export default function HomePage() {
   const [notice, setNotice] = useState("Waiting for live ingest events");
   const [progressEvents, setProgressEvents] = useState<string[]>([]);
   const [readerMode, setReaderMode] = useState<ReaderMode>("thread");
-  const [readAtByThread, setReadAtByThread] = useState<Record<string, number>>(
-    () => readLocalMap(READ_STATE_KEY),
+  const [readPostNos, setReadPostNos] = useState<Record<string, number>>(() =>
+    readLocalMap(READ_POST_STATE_KEY),
   );
-  const [selectedThreadReadAt, setSelectedThreadReadAt] = useState(0);
   const [ingestProgress, setIngestProgress] = useState<IngestProgress | null>(
     null,
   );
@@ -174,14 +174,10 @@ export default function HomePage() {
     if (!token) return;
     const nextThreads = await authFetch<BizThreadDto[]>("/biz/threads");
     setThreads(nextThreads);
+    setReadPostNos((current) => migrateLegacyThreadReads(nextThreads, current));
     setSelectedThreadNo((current) => {
       if (current) return current;
       const firstThreadNo = nextThreads[0]?.thread_no ?? null;
-      if (firstThreadNo) {
-        setSelectedThreadReadAt(
-          readLocalMap(READ_STATE_KEY)[String(firstThreadNo)] ?? 0,
-        );
-      }
       return firstThreadNo;
     });
   }, [authFetch, token]);
@@ -246,6 +242,16 @@ export default function HomePage() {
     [],
   );
 
+  const markPostRead = useCallback((post: BizPostDto) => {
+    const key = String(post.post_no);
+    setReadPostNos((current) => {
+      if (current[key]) return current;
+      const next = { ...current, [key]: Date.now() };
+      writeLocalMap(READ_POST_STATE_KEY, next);
+      return next;
+    });
+  }, []);
+
   const addProgress = useCallback((message: string) => {
     setProgressEvents((current) => [message, ...current].slice(0, 12));
   }, []);
@@ -305,11 +311,6 @@ export default function HomePage() {
       writeLocalMap(SCROLL_STATE_KEY, {
         ...readLocalMap(SCROLL_STATE_KEY),
         [key]: scrollTop,
-      });
-      setReadAtByThread((current) => {
-        const next = { ...current, [key]: Date.now() };
-        writeLocalMap(READ_STATE_KEY, next);
-        return next;
       });
     };
   }, [readerMode, selectedThreadNo]);
@@ -571,15 +572,15 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-950">
-      <AppNavbar className="border-b border-zinc-200 bg-white/95 text-zinc-950" />
+    <div className="biz-workspace dark min-h-screen bg-[#050505] text-zinc-100">
+      <AppNavbar className="border-b border-zinc-800 bg-[#050505]/95 text-zinc-100" />
       <main className="mx-auto grid max-w-[1680px] gap-4 px-4 pb-8 pt-24">
-        <section className="grid gap-3 border-b border-zinc-200 pb-4 lg:grid-cols-[1fr_auto] lg:items-end">
+        <section className="grid gap-3 border-b border-zinc-800 pb-4 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <h1 className="text-2xl font-semibold tracking-normal">
               Financial Signal Workspace
             </h1>
-            <p className="mt-1 text-sm text-zinc-600">
+            <p className="mt-1 text-sm text-zinc-400">
               Source: 4chan /biz/. Analysis labels are machine-generated and are
               not investment advice.
             </p>
@@ -648,7 +649,7 @@ export default function HomePage() {
         </section>
 
         <section className="grid gap-3 lg:grid-cols-[360px_minmax(0,1fr)_420px]">
-          <aside className="min-h-[72vh] border border-zinc-200 bg-white">
+          <aside className="min-h-[72vh] border border-zinc-800 bg-[#0a0a0a]">
             <PanelHeader
               icon={<Activity className="h-4 w-4" />}
               title="Threads"
@@ -659,10 +660,6 @@ export default function HomePage() {
                   key={thread.thread_no}
                   onClick={() => {
                     setReaderMode("thread");
-                    setSelectedThreadReadAt(
-                      readLocalMap(READ_STATE_KEY)[String(thread.thread_no)] ??
-                        0,
-                    );
                     setSelectedThreadNo(thread.thread_no);
                     setSearchResponse(null);
                   }}
@@ -670,29 +667,27 @@ export default function HomePage() {
                     if (event.key !== "Enter" && event.key !== " ") return;
                     event.preventDefault();
                     setReaderMode("thread");
-                    setSelectedThreadReadAt(
-                      readLocalMap(READ_STATE_KEY)[String(thread.thread_no)] ??
-                        0,
-                    );
                     setSelectedThreadNo(thread.thread_no);
                     setSearchResponse(null);
                   }}
                   role="button"
                   tabIndex={0}
-                  className={`block w-full cursor-pointer border-b border-zinc-100 px-3 py-3 text-left hover:bg-zinc-50 ${
-                    selectedThreadNo === thread.thread_no ? "bg-emerald-50" : ""
+                  className={`block w-full cursor-pointer border-b border-zinc-800/80 px-3 py-3 text-left hover:bg-[#121212] ${
+                    selectedThreadNo === thread.thread_no
+                      ? "bg-zinc-800/70"
+                      : ""
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs text-zinc-500">
+                    <span className="font-mono text-xs text-zinc-400">
                       No. {thread.thread_no}
                     </span>
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-zinc-400">
                       {thread.post_count ?? 0} posts
                     </span>
                   </div>
-                  {isThreadUnread(thread, readAtByThread) && (
-                    <Badge className="mt-2 bg-amber-500 text-white">new</Badge>
+                  {isThreadUnread(thread, readPostNos) && (
+                    <Badge className="mt-2 bg-amber-500 text-black">new</Badge>
                   )}
                   {thread.active && thread.attachment && (
                     <AttachmentPreview
@@ -724,7 +719,7 @@ export default function HomePage() {
             </div>
           </aside>
 
-          <section className="min-h-[72vh] border border-zinc-200 bg-white">
+          <section className="min-h-[72vh] border border-zinc-800 bg-[#0a0a0a]">
             <PanelHeader
               icon={
                 readerMode === "corpus" ? (
@@ -747,7 +742,7 @@ export default function HomePage() {
               action={
                 readerMode === "thread" && threadDetail?.thread.source_url ? (
                   <a
-                    className="inline-flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-950"
+                    className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-100"
                     href={threadDetail.thread.source_url}
                     target="_blank"
                     rel="noreferrer"
@@ -758,7 +753,7 @@ export default function HomePage() {
               }
             />
             {readerMode === "thread" ? (
-              <div className="grid gap-2 border-b border-zinc-200 p-3 md:grid-cols-[1fr_auto]">
+              <div className="grid gap-2 border-b border-zinc-800 p-3 md:grid-cols-[1fr_auto]">
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -770,7 +765,7 @@ export default function HomePage() {
                 </Button>
               </div>
             ) : readerMode === "feed" ? (
-              <div className="grid gap-2 border-b border-zinc-200 p-3 md:grid-cols-[1fr_auto]">
+              <div className="grid gap-2 border-b border-zinc-800 p-3 md:grid-cols-[1fr_auto]">
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -786,7 +781,7 @@ export default function HomePage() {
                 </Button>
               </div>
             ) : (
-              <div className="grid gap-2 border-b border-zinc-200 p-3 md:grid-cols-[1fr_130px_120px_130px_150px_auto]">
+              <div className="grid gap-2 border-b border-zinc-800 p-3 md:grid-cols-[1fr_130px_120px_130px_150px_auto]">
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -806,7 +801,7 @@ export default function HomePage() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border-zinc-800 bg-[#0a0a0a] text-zinc-100">
                     <SelectItem value="all">All stance</SelectItem>
                     <SelectItem value="bullish">Bullish</SelectItem>
                     <SelectItem value="bearish">Bearish</SelectItem>
@@ -818,7 +813,7 @@ export default function HomePage() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border-zinc-800 bg-[#0a0a0a] text-zinc-100">
                     <SelectItem value="all">All analysis</SelectItem>
                     <SelectItem value="raw">Raw</SelectItem>
                     <SelectItem value="triaged">Triaged</SelectItem>
@@ -835,13 +830,13 @@ export default function HomePage() {
               </div>
             )}
             {readerMode === "corpus" && corpusSearched && (
-              <div className="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+              <div className="border-b border-zinc-800 bg-[#121212] px-3 py-2 text-xs text-zinc-400">
                 Showing corpus results ranked by text/tag/symbol match,
                 confidence, and recency.
               </div>
             )}
             {readerMode === "feed" && (
-              <div className="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+              <div className="border-b border-zinc-800 bg-[#121212] px-3 py-2 text-xs text-zinc-400">
                 Showing latest captured posts across all threads, newest first.
               </div>
             )}
@@ -850,7 +845,7 @@ export default function HomePage() {
             ) : (
               <PostList
                 posts={activePosts}
-                readAt={readerMode === "thread" ? selectedThreadReadAt : 0}
+                readPostNos={readPostNos}
                 scrollRef={readerScrollRef}
                 showThreadContext={readerMode === "feed"}
                 showImages={
@@ -859,11 +854,9 @@ export default function HomePage() {
                 onImageOpen={(attachment, post) =>
                   openImagePreview(attachment, `Post ${post.post_no}`)
                 }
+                onPostRead={markPostRead}
                 onThreadClick={(threadNo) => {
                   setReaderMode("thread");
-                  setSelectedThreadReadAt(
-                    readLocalMap(READ_STATE_KEY)[String(threadNo)] ?? 0,
-                  );
                   setSelectedThreadNo(threadNo);
                 }}
               />
@@ -871,7 +864,7 @@ export default function HomePage() {
           </section>
 
           <aside className="grid min-h-[72vh] gap-3">
-            <section className="border border-zinc-200 bg-white">
+            <section className="border border-zinc-800 bg-[#0a0a0a]">
               <PanelHeader
                 icon={<TrendingUp className="h-4 w-4" />}
                 title="Security Summary"
@@ -890,7 +883,7 @@ export default function HomePage() {
                 {securitySummary ? (
                   <SecuritySummary summary={securitySummary} />
                 ) : (
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-sm text-zinc-400">
                     Enter a symbol to collect related /biz/ posts and summarize
                     the bullish and bearish case.
                   </p>
@@ -898,14 +891,14 @@ export default function HomePage() {
               </div>
             </section>
 
-            <section className="border border-zinc-200 bg-white">
+            <section className="border border-zinc-800 bg-[#0a0a0a]">
               <PanelHeader icon={<Bell className="h-4 w-4" />} title="Ingest" />
               <div className="grid gap-3 p-3 text-sm">
-                <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                <div className="rounded-md border border-zinc-800 bg-[#121212] p-3">
                   {notice}
                 </div>
                 {activeIngest && (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-950">
+                  <div className="rounded-md border border-amber-700/60 bg-amber-950/40 p-3 text-amber-100">
                     Ingest is active. First runs can take several minutes
                     because the crawler respects the 1 request/second source API
                     limit.
@@ -938,11 +931,11 @@ export default function HomePage() {
                       : "none"
                   }
                 />
-                <div className="rounded-md border border-zinc-200 bg-white p-3">
-                  <div className="mb-2 text-[11px] uppercase text-zinc-500">
+                <div className="rounded-md border border-zinc-800 bg-[#0a0a0a] p-3">
+                  <div className="mb-2 text-[11px] uppercase text-zinc-400">
                     Progress Log
                   </div>
-                  <div className="grid max-h-48 gap-2 overflow-y-auto font-mono text-xs text-zinc-700">
+                  <div className="grid max-h-48 gap-2 overflow-y-auto font-mono text-xs text-zinc-300">
                     {progressEvents.length > 0 ? (
                       progressEvents.map((event, index) => (
                         <div key={`${event}-${index}`}>{event}</div>
@@ -955,7 +948,7 @@ export default function HomePage() {
               </div>
             </section>
 
-            <section className="border border-zinc-200 bg-white">
+            <section className="border border-zinc-800 bg-[#0a0a0a]">
               <PanelHeader
                 icon={<BarChart3 className="h-4 w-4" />}
                 title="Analysis"
@@ -1073,7 +1066,7 @@ function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex h-11 items-center justify-between border-b border-zinc-200 px-3">
+    <div className="flex h-11 items-center justify-between border-b border-zinc-800 px-3">
       <div className="flex items-center gap-2 text-sm font-semibold">
         {icon}
         {title}
@@ -1089,7 +1082,7 @@ function CorpusOverview({
   overview: BizCorpusOverviewDto | null;
 }) {
   if (!overview) {
-    return <div className="p-6 text-sm text-zinc-500">Loading corpus...</div>;
+    return <div className="p-6 text-sm text-zinc-400">Loading corpus...</div>;
   }
 
   return (
@@ -1131,13 +1124,16 @@ function CorpusOverview({
         <div className="mb-2 text-sm font-semibold">Recent Captured Posts</div>
         <div className="grid gap-2">
           {overview.recent_posts.slice(0, 8).map((post) => (
-            <div key={post.id} className="border border-zinc-200 bg-white p-3">
-              <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+            <div
+              key={post.id}
+              className="border border-zinc-800 bg-[#0a0a0a] p-3"
+            >
+              <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
                 <span className="font-mono">No. {post.post_no}</span>
                 <AnalysisBadge state={post.analysis_state} />
                 <span>{new Date(post.posted_at).toLocaleString()}</span>
               </div>
-              <p className="line-clamp-3 text-sm text-zinc-800">
+              <p className="line-clamp-3 text-sm text-zinc-200">
                 {post.clean_text || "[no text]"}
               </p>
             </div>
@@ -1162,7 +1158,7 @@ function TermCloud({
   const max = Math.max(...terms.map((term) => term.weight), 1);
 
   return (
-    <section className="border border-zinc-200 bg-zinc-50 p-3">
+    <section className="border border-zinc-800 bg-[#121212] p-3">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
         {icon}
         {title}
@@ -1174,7 +1170,7 @@ function TermCloud({
             return (
               <span
                 key={term.value}
-                className="rounded-md border border-zinc-200 px-2 py-1 text-xs"
+                className="rounded-md border border-zinc-800 px-2 py-1 text-xs"
                 style={
                   heat
                     ? {
@@ -1183,12 +1179,12 @@ function TermCloud({
                     : undefined
                 }
               >
-                {term.value} <span className="text-zinc-500">{term.count}</span>
+                {term.value} <span className="text-zinc-400">{term.count}</span>
               </span>
             );
           })
         ) : (
-          <span className="text-sm text-zinc-500">No terms yet.</span>
+          <span className="text-sm text-zinc-400">No terms yet.</span>
         )}
       </div>
     </section>
@@ -1197,24 +1193,26 @@ function TermCloud({
 
 function PostList({
   posts,
-  readAt,
+  readPostNos,
   scrollRef,
   showThreadContext = false,
   showImages = true,
   onImageOpen,
+  onPostRead,
   onThreadClick,
 }: {
   posts: BizPostDto[];
-  readAt: number;
+  readPostNos: Record<string, number>;
   scrollRef: RefObject<HTMLDivElement | null>;
   showThreadContext?: boolean;
   showImages?: boolean;
   onImageOpen?: (attachment: BizAttachmentDto, post: BizPostDto) => void;
+  onPostRead?: (post: BizPostDto) => void;
   onThreadClick?: (threadNo: number) => void;
 }) {
   if (posts.length === 0) {
     return (
-      <div className="p-6 text-sm text-zinc-500">No posts loaded yet.</div>
+      <div className="p-6 text-sm text-zinc-400">No posts loaded yet.</div>
     );
   }
 
@@ -1224,10 +1222,11 @@ function PostList({
         <PostArticle
           key={post.id}
           post={post}
-          readAt={readAt}
+          read={isPostRead(post, readPostNos)}
           showThreadContext={showThreadContext}
           showImages={showImages}
           onImageOpen={onImageOpen}
+          onPostRead={onPostRead}
           onThreadClick={onThreadClick}
         />
       ))}
@@ -1237,17 +1236,19 @@ function PostList({
 
 function PostArticle({
   post,
-  readAt,
+  read,
   showThreadContext,
   showImages,
   onImageOpen,
+  onPostRead,
   onThreadClick,
 }: {
   post: BizPostDto;
-  readAt: number;
+  read: boolean;
   showThreadContext: boolean;
   showImages: boolean;
   onImageOpen?: (attachment: BizAttachmentDto, post: BizPostDto) => void;
+  onPostRead?: (post: BizPostDto) => void;
   onThreadClick?: (threadNo: number) => void;
 }) {
   const aiSummary = post.tags.find((tag) => tag.tag_type === "ai_summary");
@@ -1257,39 +1258,36 @@ function PostArticle({
 
   return (
     <article
+      onMouseEnter={() => onPostRead?.(post)}
       className={`border-b p-4 ${
-        isPostUnread(post, readAt)
-          ? "border-amber-200 bg-amber-50/70"
-          : "border-zinc-100"
+        read ? "border-zinc-800/80" : "border-amber-700/60 bg-amber-950/30"
       }`}
     >
-      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
         <span className="font-mono">No. {post.post_no}</span>
         {showThreadContext && (
           <button
             type="button"
             onClick={() => onThreadClick?.(post.thread_no)}
-            className="font-mono text-emerald-700 hover:text-emerald-900"
+            className="font-mono text-emerald-400 hover:text-emerald-200"
           >
             Thread {post.thread_no}
           </button>
         )}
         <span>{new Date(post.posted_at).toLocaleString()}</span>
         <AnalysisBadge state={post.analysis_state} />
-        {isPostUnread(post, readAt) && (
-          <Badge className="bg-amber-500 text-white">new</Badge>
-        )}
+        {!read && <Badge className="bg-amber-500 text-black">new</Badge>}
         <a
           href={post.source_url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 hover:text-zinc-950"
+          className="inline-flex items-center gap-1 hover:text-zinc-100"
         >
           source <ExternalLink className="h-3 w-3" />
         </a>
       </div>
       {showThreadContext && (
-        <div className="mt-2 border-l-2 border-zinc-200 pl-3 text-xs text-zinc-600">
+        <div className="mt-2 border-l-2 border-zinc-800 pl-3 text-xs text-zinc-400">
           {post.thread_subject || "Untitled thread"}
         </div>
       )}
@@ -1303,7 +1301,7 @@ function PostArticle({
         />
       )}
       {aiSummary && <PostSummary summary={aiSummary.value} />}
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-800">
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-200">
         {post.clean_text || "[no text]"}
       </p>
       <div className="mt-3 flex flex-wrap gap-1">
@@ -1327,8 +1325,8 @@ function PostArticle({
 
 function PostSummary({ summary }: { summary: string }) {
   return (
-    <section className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2 text-sm leading-6 text-sky-950">
-      <div className="mb-1 text-[11px] font-semibold uppercase text-sky-700">
+    <section className="mt-3 border border-emerald-700/50 bg-zinc-900 px-3 py-2 text-sm leading-6 text-emerald-100">
+      <div className="mb-1 text-[11px] font-semibold uppercase text-emerald-300">
         AI summary
       </div>
       {summary}
@@ -1369,7 +1367,7 @@ function AttachmentPreview({
       className={
         compact
           ? "mt-2 block w-fit"
-          : "mt-3 block w-fit rounded-md border border-zinc-200 bg-zinc-50 p-2 text-left hover:border-zinc-300"
+          : "mt-3 block w-fit rounded-md border border-zinc-800 bg-[#121212] p-2 text-left hover:border-emerald-800"
       }
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- Direct remote 4cdn preview; do not proxy or persist attachments. */}
@@ -1380,12 +1378,12 @@ function AttachmentPreview({
         referrerPolicy="no-referrer"
         className={
           compact
-            ? "h-20 w-20 rounded border border-zinc-200 object-cover"
+            ? "h-20 w-20 rounded border border-zinc-800 object-cover"
             : "max-h-80 max-w-full rounded object-contain"
         }
       />
       {!compact && (filename || dimensions) && (
-        <div className="mt-1 text-xs text-zinc-500">
+        <div className="mt-1 text-xs text-zinc-400">
           {[filename, dimensions].filter(Boolean).join(" · ")}
         </div>
       )}
@@ -1442,6 +1440,7 @@ function ImagePreviewDialog({
               type="button"
               size="sm"
               variant="outline"
+              className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
               onClick={() => onZoomChange(Math.max(1, zoom - 0.25))}
             >
               <ZoomOut className="h-4 w-4" />
@@ -1453,6 +1452,7 @@ function ImagePreviewDialog({
               type="button"
               size="sm"
               variant="outline"
+              className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
               onClick={() => onZoomChange(Math.min(3, zoom + 0.25))}
             >
               <ZoomIn className="h-4 w-4" />
@@ -1461,6 +1461,7 @@ function ImagePreviewDialog({
               type="button"
               size="sm"
               variant="outline"
+              className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
               onClick={() => onFullscreenChange(!fullscreen)}
             >
               {fullscreen ? (
@@ -1521,7 +1522,7 @@ function SecuritySummary({ summary }: { summary: BizSecuritySummaryDto }) {
         <Metric label="Bear" value={summary.bearish_count} />
         <Metric label="Mixed" value={summary.mixed_count} />
       </div>
-      <p className="rounded-md border border-zinc-200 bg-zinc-50 p-3 leading-6">
+      <p className="rounded-md border border-zinc-800 bg-[#121212] p-3 leading-6">
         {summary.summary}
       </p>
       <Evidence
@@ -1558,7 +1559,7 @@ function Evidence({
           (point, index) => (
             <p
               key={`${title}-${index}`}
-              className="border-l-2 border-zinc-300 pl-3"
+              className="border-l-2 border-emerald-800 pl-3"
             >
               {point}
             </p>
@@ -1571,8 +1572,8 @@ function Evidence({
 
 function Metric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-md border border-zinc-200 bg-white px-3 py-2">
-      <div className="text-[11px] uppercase text-zinc-500">{label}</div>
+    <div className="rounded-md border border-zinc-800 bg-[#0a0a0a] px-3 py-2">
+      <div className="text-[11px] uppercase text-zinc-400">{label}</div>
       <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
   );
@@ -1597,18 +1598,18 @@ function IngestProgressBar({
   );
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-3">
+    <div className="rounded-md border border-zinc-800 bg-[#0a0a0a] p-3">
       <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-        <span className="font-medium text-zinc-800">{progress.message}</span>
-        <span className="font-mono text-zinc-500">{percent}%</span>
+        <span className="font-medium text-zinc-200">{progress.message}</span>
+        <span className="font-mono text-zinc-400">{percent}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+      <div className="h-2 overflow-hidden rounded-full bg-zinc-900">
         <div
-          className="h-full rounded-full bg-emerald-500 transition-all"
+          className="h-full rounded-full bg-emerald-400 transition-all"
           style={{ width: `${percent}%` }}
         />
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-600">
+      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-400">
         <span>
           {progress.checked}/{progress.planned || "?"} threads checked
         </span>
@@ -1642,20 +1643,20 @@ function AnalysisProgressBar({
       : (status?.progress_percent ?? 0);
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-3">
+    <div className="rounded-md border border-zinc-800 bg-[#0a0a0a] p-3">
       <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-        <span className="font-medium text-zinc-800">
+        <span className="font-medium text-zinc-200">
           {status?.current_message ?? "Analysis status unavailable"}
         </span>
-        <span className="font-mono text-zinc-500">{percent}%</span>
+        <span className="font-mono text-zinc-400">{percent}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+      <div className="h-2 overflow-hidden rounded-full bg-zinc-900">
         <div
-          className="h-full rounded-full bg-sky-500 transition-all"
+          className="h-full rounded-full bg-emerald-400 transition-all"
           style={{ width: `${percent}%` }}
         />
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-600">
+      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-400">
         <span>
           {complete}/{total || "?"} posts analyzed
         </span>
@@ -1680,14 +1681,14 @@ function StatusPill({ status }: { status: BizIngestStatusDto | null }) {
     : "No ingest run";
 
   return (
-    <div className="inline-flex h-9 items-center gap-2 border border-zinc-200 bg-white px-3 text-sm">
+    <div className="inline-flex h-9 items-center gap-2 border border-zinc-800 bg-[#0a0a0a] px-3 text-sm">
       <span
         className={`h-2 w-2 rounded-full ${
           run?.status === "failed"
             ? "bg-red-500"
             : run?.status === "running"
               ? "bg-amber-500"
-              : "bg-emerald-500"
+              : "bg-emerald-400"
         }`}
       />
       {label}
@@ -1697,16 +1698,50 @@ function StatusPill({ status }: { status: BizIngestStatusDto | null }) {
 
 function isThreadUnread(
   thread: BizThreadDto,
-  readAtByThread: Record<string, number>,
+  readPostNos: Record<string, number>,
 ) {
-  const latest = thread.latest_post_at
-    ? new Date(thread.latest_post_at).getTime()
-    : 0;
-  return latest > (readAtByThread[String(thread.thread_no)] ?? 0);
+  const postNos = thread.post_nos?.length
+    ? thread.post_nos
+    : thread.latest_post_no
+      ? [thread.latest_post_no]
+      : [];
+  return postNos.some((postNo) => !readPostNos[String(postNo)]);
 }
 
-function isPostUnread(post: BizPostDto, readAt: number) {
-  return new Date(post.first_seen_at).getTime() > readAt;
+function isPostRead(post: BizPostDto, readPostNos: Record<string, number>) {
+  return Boolean(readPostNos[String(post.post_no)]);
+}
+
+function migrateLegacyThreadReads(
+  threads: BizThreadDto[],
+  current: Record<string, number>,
+) {
+  const legacy = readLocalMap(LEGACY_READ_THREAD_STATE_KEY);
+  if (Object.keys(legacy).length === 0) return current;
+
+  let changed = false;
+  const next = { ...current };
+
+  for (const thread of threads) {
+    const readAt = legacy[String(thread.thread_no)];
+    if (!readAt) continue;
+
+    for (const postRef of thread.post_refs ?? []) {
+      const key = String(postRef.post_no);
+      if (next[key]) continue;
+
+      if (new Date(postRef.first_seen_at).getTime() <= readAt) {
+        next[key] = readAt;
+        changed = true;
+      }
+    }
+  }
+
+  if (changed) {
+    writeLocalMap(READ_POST_STATE_KEY, next);
+  }
+
+  return changed ? next : current;
 }
 
 function readLocalMap(key: string): Record<string, number> {

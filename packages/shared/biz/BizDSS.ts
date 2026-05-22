@@ -52,6 +52,9 @@ export interface BizThreadDto {
   last_seen_at: string;
   post_count?: number;
   latest_post_at?: string | null;
+  latest_post_no?: number | null;
+  post_nos?: number[];
+  post_refs?: Array<{ post_no: number; first_seen_at: string }>;
   attachment?: BizAttachmentDto | null;
 }
 
