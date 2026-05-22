@@ -18,14 +18,19 @@ import {
   ExternalLink,
   Filter,
   Loader2,
+  Maximize2,
+  Minimize2,
   RefreshCw,
   Search,
   Tags,
   TrendingDown,
   TrendingUp,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import type {
   BizAnalysisStatusDto,
+  BizAttachmentDto,
   BizCorpusOverviewDto,
   BizIngestStatusDto,
   BizPostAnalysisState,
@@ -41,6 +46,12 @@ import type { Socket } from "socket.io-client";
 import { AppNavbar } from "@/components/navbar/presets/app";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -66,6 +77,10 @@ type IngestProgress = {
   planned: number;
   newPosts: number;
   errors: number;
+};
+type ImagePreview = {
+  attachment: BizAttachmentDto;
+  title: string;
 };
 
 export default function HomePage() {
@@ -109,6 +124,9 @@ export default function HomePage() {
     null,
   );
   const [progressNow, setProgressNow] = useState(() => Date.now());
+  const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imageFullscreen, setImageFullscreen] = useState(false);
   const readerScrollRef = useRef<HTMLDivElement | null>(null);
 
   const authFetch = useCallback(
@@ -171,9 +189,11 @@ export default function HomePage() {
   const loadThread = useCallback(
     async (threadNo: number | null) => {
       if (!token || !threadNo) return;
-      setThreadDetail(
-        await authFetch<BizThreadDetailDto>(`/biz/threads/${threadNo}`),
+      setThreadDetail(null);
+      const nextThread = await authFetch<BizThreadDetailDto>(
+        `/biz/threads/${threadNo}`,
       );
+      setThreadDetail(nextThread);
     },
     [authFetch, token],
   );
@@ -216,6 +236,15 @@ export default function HomePage() {
       ),
     );
   }, [authFetch, symbol, token]);
+
+  const openImagePreview = useCallback(
+    (attachment: BizAttachmentDto, title: string) => {
+      setImageZoom(1);
+      setImageFullscreen(false);
+      setImagePreview({ attachment, title });
+    },
+    [],
+  );
 
   const addProgress = useCallback((message: string) => {
     setProgressEvents((current) => [message, ...current].slice(0, 12));
@@ -269,16 +298,9 @@ export default function HomePage() {
   useEffect(() => {
     if (!selectedThreadNo || readerMode !== "thread") return;
     const key = String(selectedThreadNo);
-    const latestScrollMap = readLocalMap(SCROLL_STATE_KEY);
-    const timeout = window.setTimeout(() => {
-      if (readerScrollRef.current) {
-        readerScrollRef.current.scrollTop = latestScrollMap[key] ?? 0;
-      }
-    }, 0);
     const scrollElement = readerScrollRef.current;
 
     return () => {
-      window.clearTimeout(timeout);
       const scrollTop = scrollElement?.scrollTop ?? 0;
       writeLocalMap(SCROLL_STATE_KEY, {
         ...readLocalMap(SCROLL_STATE_KEY),
@@ -291,6 +313,31 @@ export default function HomePage() {
       });
     };
   }, [readerMode, selectedThreadNo]);
+
+  useEffect(() => {
+    if (
+      !selectedThreadNo ||
+      readerMode !== "thread" ||
+      threadDetail?.thread.thread_no !== selectedThreadNo
+    ) {
+      return;
+    }
+
+    const key = String(selectedThreadNo);
+    const animationFrame = window.requestAnimationFrame(() => {
+      if (readerScrollRef.current) {
+        readerScrollRef.current.scrollTop =
+          readLocalMap(SCROLL_STATE_KEY)[key] ?? 0;
+      }
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [
+    readerMode,
+    selectedThreadNo,
+    threadDetail?.posts.length,
+    threadDetail?.thread.thread_no,
+  ]);
 
   useEffect(() => {
     if (!activeIngest) return;
@@ -608,9 +655,8 @@ export default function HomePage() {
             />
             <div className="max-h-[72vh] overflow-y-auto">
               {threads.map((thread) => (
-                <button
+                <div
                   key={thread.thread_no}
-                  type="button"
                   onClick={() => {
                     setReaderMode("thread");
                     setSelectedThreadReadAt(
@@ -620,7 +666,20 @@ export default function HomePage() {
                     setSelectedThreadNo(thread.thread_no);
                     setSearchResponse(null);
                   }}
-                  className={`block w-full border-b border-zinc-100 px-3 py-3 text-left hover:bg-zinc-50 ${
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    setReaderMode("thread");
+                    setSelectedThreadReadAt(
+                      readLocalMap(READ_STATE_KEY)[String(thread.thread_no)] ??
+                        0,
+                    );
+                    setSelectedThreadNo(thread.thread_no);
+                    setSearchResponse(null);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className={`block w-full cursor-pointer border-b border-zinc-100 px-3 py-3 text-left hover:bg-zinc-50 ${
                     selectedThreadNo === thread.thread_no ? "bg-emerald-50" : ""
                   }`}
                 >
@@ -635,6 +694,18 @@ export default function HomePage() {
                   {isThreadUnread(thread, readAtByThread) && (
                     <Badge className="mt-2 bg-amber-500 text-white">new</Badge>
                   )}
+                  {thread.active && thread.attachment && (
+                    <AttachmentPreview
+                      attachment={thread.attachment}
+                      compact
+                      onOpen={(attachment) =>
+                        openImagePreview(
+                          attachment,
+                          `Thread ${thread.thread_no}`,
+                        )
+                      }
+                    />
+                  )}
                   <div className="mt-1 line-clamp-2 text-sm font-medium">
                     {thread.subject || "Untitled thread"}
                   </div>
@@ -648,7 +719,7 @@ export default function HomePage() {
                       <Badge variant="outline">archived</Badge>
                     )}
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </aside>
@@ -782,6 +853,12 @@ export default function HomePage() {
                 readAt={readerMode === "thread" ? selectedThreadReadAt : 0}
                 scrollRef={readerScrollRef}
                 showThreadContext={readerMode === "feed"}
+                showImages={
+                  readerMode === "thread" ? threadDetail?.thread.active : true
+                }
+                onImageOpen={(attachment, post) =>
+                  openImagePreview(attachment, `Post ${post.post_no}`)
+                }
                 onThreadClick={(threadNo) => {
                   setReaderMode("thread");
                   setSelectedThreadReadAt(
@@ -969,6 +1046,19 @@ export default function HomePage() {
           </aside>
         </section>
       </main>
+      <ImagePreviewDialog
+        preview={imagePreview}
+        zoom={imageZoom}
+        fullscreen={imageFullscreen}
+        onZoomChange={setImageZoom}
+        onFullscreenChange={setImageFullscreen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setImagePreview(null);
+            setImageFullscreen(false);
+          }
+        }}
+      />
     </div>
   );
 }
@@ -1110,12 +1200,16 @@ function PostList({
   readAt,
   scrollRef,
   showThreadContext = false,
+  showImages = true,
+  onImageOpen,
   onThreadClick,
 }: {
   posts: BizPostDto[];
   readAt: number;
   scrollRef: RefObject<HTMLDivElement | null>;
   showThreadContext?: boolean;
+  showImages?: boolean;
+  onImageOpen?: (attachment: BizAttachmentDto, post: BizPostDto) => void;
   onThreadClick?: (threadNo: number) => void;
 }) {
   if (posts.length === 0) {
@@ -1127,70 +1221,288 @@ function PostList({
   return (
     <div ref={scrollRef} className="max-h-[63vh] overflow-y-auto">
       {posts.map((post) => (
-        <article
+        <PostArticle
           key={post.id}
-          className={`border-b p-4 ${
-            isPostUnread(post, readAt)
-              ? "border-amber-200 bg-amber-50/70"
-              : "border-zinc-100"
-          }`}
-        >
-          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-            <span className="font-mono">No. {post.post_no}</span>
-            {showThreadContext && (
-              <button
-                type="button"
-                onClick={() => onThreadClick?.(post.thread_no)}
-                className="font-mono text-emerald-700 hover:text-emerald-900"
-              >
-                Thread {post.thread_no}
-              </button>
-            )}
-            <span>{new Date(post.posted_at).toLocaleString()}</span>
-            <AnalysisBadge state={post.analysis_state} />
-            {isPostUnread(post, readAt) && (
-              <Badge className="bg-amber-500 text-white">new</Badge>
-            )}
-            <a
-              href={post.source_url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 hover:text-zinc-950"
-            >
-              source <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
-          {showThreadContext && (
-            <div className="mt-2 border-l-2 border-zinc-200 pl-3 text-xs text-zinc-600">
-              {post.thread_subject || "Untitled thread"}
-            </div>
-          )}
-          {post.subject && (
-            <h2 className="mt-2 text-base font-semibold">{post.subject}</h2>
-          )}
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-800">
-            {post.clean_text || "[no text]"}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-1">
-            {post.security_mentions.map((mention) => (
-              <Badge
-                key={mention.id}
-                variant={
-                  mention.stance === "bearish" ? "destructive" : "secondary"
-                }
-              >
-                {mention.symbol} {mention.stance}
-              </Badge>
-            ))}
-            {post.tags.slice(0, 8).map((tag) => (
-              <Badge key={tag.id} variant="outline">
-                {tag.tag_type}:{tag.value}
-              </Badge>
-            ))}
-          </div>
-        </article>
+          post={post}
+          readAt={readAt}
+          showThreadContext={showThreadContext}
+          showImages={showImages}
+          onImageOpen={onImageOpen}
+          onThreadClick={onThreadClick}
+        />
       ))}
     </div>
+  );
+}
+
+function PostArticle({
+  post,
+  readAt,
+  showThreadContext,
+  showImages,
+  onImageOpen,
+  onThreadClick,
+}: {
+  post: BizPostDto;
+  readAt: number;
+  showThreadContext: boolean;
+  showImages: boolean;
+  onImageOpen?: (attachment: BizAttachmentDto, post: BizPostDto) => void;
+  onThreadClick?: (threadNo: number) => void;
+}) {
+  const aiSummary = post.tags.find((tag) => tag.tag_type === "ai_summary");
+  const visibleTags = post.tags
+    .filter((tag) => tag.tag_type !== "ai_summary")
+    .slice(0, 8);
+
+  return (
+    <article
+      className={`border-b p-4 ${
+        isPostUnread(post, readAt)
+          ? "border-amber-200 bg-amber-50/70"
+          : "border-zinc-100"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+        <span className="font-mono">No. {post.post_no}</span>
+        {showThreadContext && (
+          <button
+            type="button"
+            onClick={() => onThreadClick?.(post.thread_no)}
+            className="font-mono text-emerald-700 hover:text-emerald-900"
+          >
+            Thread {post.thread_no}
+          </button>
+        )}
+        <span>{new Date(post.posted_at).toLocaleString()}</span>
+        <AnalysisBadge state={post.analysis_state} />
+        {isPostUnread(post, readAt) && (
+          <Badge className="bg-amber-500 text-white">new</Badge>
+        )}
+        <a
+          href={post.source_url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 hover:text-zinc-950"
+        >
+          source <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+      {showThreadContext && (
+        <div className="mt-2 border-l-2 border-zinc-200 pl-3 text-xs text-zinc-600">
+          {post.thread_subject || "Untitled thread"}
+        </div>
+      )}
+      {post.subject && (
+        <h2 className="mt-2 text-base font-semibold">{post.subject}</h2>
+      )}
+      {showImages && post.thread_active !== false && post.attachment && (
+        <AttachmentPreview
+          attachment={post.attachment}
+          onOpen={(attachment) => onImageOpen?.(attachment, post)}
+        />
+      )}
+      {aiSummary && <PostSummary summary={aiSummary.value} />}
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-800">
+        {post.clean_text || "[no text]"}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {post.security_mentions.map((mention) => (
+          <Badge
+            key={mention.id}
+            variant={mention.stance === "bearish" ? "destructive" : "secondary"}
+          >
+            {mention.symbol} {mention.stance}
+          </Badge>
+        ))}
+        {visibleTags.map((tag) => (
+          <Badge key={tag.id} variant="outline">
+            {tag.tag_type}:{tag.value}
+          </Badge>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function PostSummary({ summary }: { summary: string }) {
+  return (
+    <section className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2 text-sm leading-6 text-sky-950">
+      <div className="mb-1 text-[11px] font-semibold uppercase text-sky-700">
+        AI summary
+      </div>
+      {summary}
+    </section>
+  );
+}
+
+function AttachmentPreview({
+  attachment,
+  compact = false,
+  onOpen,
+}: {
+  attachment: BizAttachmentDto;
+  compact?: boolean;
+  onOpen?: (attachment: BizAttachmentDto) => void;
+}) {
+  if (attachment.file_deleted) return null;
+
+  const imageUrl = attachment.thumbnail_url ?? attachment.media_url;
+  const mediaUrl = attachment.media_url ?? imageUrl;
+  if (!imageUrl || !mediaUrl) return null;
+
+  const dimensions =
+    attachment.width && attachment.height
+      ? `${attachment.width}x${attachment.height}`
+      : null;
+  const filename = [attachment.filename, attachment.ext]
+    .filter(Boolean)
+    .join("");
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen?.(attachment);
+      }}
+      className={
+        compact
+          ? "mt-2 block w-fit"
+          : "mt-3 block w-fit rounded-md border border-zinc-200 bg-zinc-50 p-2 text-left hover:border-zinc-300"
+      }
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- Direct remote 4cdn preview; do not proxy or persist attachments. */}
+      <img
+        src={imageUrl}
+        alt={filename || "post attachment"}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        className={
+          compact
+            ? "h-20 w-20 rounded border border-zinc-200 object-cover"
+            : "max-h-80 max-w-full rounded object-contain"
+        }
+      />
+      {!compact && (filename || dimensions) && (
+        <div className="mt-1 text-xs text-zinc-500">
+          {[filename, dimensions].filter(Boolean).join(" · ")}
+        </div>
+      )}
+    </button>
+  );
+}
+
+function ImagePreviewDialog({
+  preview,
+  zoom,
+  fullscreen,
+  onZoomChange,
+  onFullscreenChange,
+  onOpenChange,
+}: {
+  preview: ImagePreview | null;
+  zoom: number;
+  fullscreen: boolean;
+  onZoomChange: (zoom: number) => void;
+  onFullscreenChange: (fullscreen: boolean) => void;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const attachment = preview?.attachment;
+  const imageUrl = attachment?.media_url ?? attachment?.thumbnail_url;
+  const filename = attachment
+    ? [attachment.filename, attachment.ext].filter(Boolean).join("")
+    : "";
+  const dimensions =
+    attachment?.width && attachment.height
+      ? `${attachment.width}x${attachment.height}`
+      : null;
+
+  return (
+    <Dialog open={Boolean(preview)} onOpenChange={onOpenChange}>
+      <DialogContent
+        className={`grid grid-rows-[auto_minmax(0,1fr)] gap-0 border-zinc-800 bg-zinc-950 p-0 text-white ${
+          fullscreen
+            ? "h-[94vh] w-[96vw] max-w-[96vw]"
+            : "h-[50vh] w-[50vw] max-w-[50vw] min-w-[360px]"
+        }`}
+      >
+        <div className="flex min-h-14 items-center justify-between gap-3 border-b border-zinc-800 px-4 pr-12">
+          <div>
+            <DialogTitle className="text-sm text-white">
+              {preview?.title ?? "Image preview"}
+            </DialogTitle>
+            <DialogDescription className="mt-1 text-xs text-zinc-400">
+              {[filename, dimensions].filter(Boolean).join(" · ") ||
+                "Remote attachment preview"}
+            </DialogDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onZoomChange(Math.max(1, zoom - 0.25))}
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <span className="w-14 text-center font-mono text-xs text-zinc-300">
+              {Math.round(zoom * 100)}%
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onZoomChange(Math.min(3, zoom + 0.25))}
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onFullscreenChange(!fullscreen)}
+            >
+              {fullscreen ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+            {imageUrl && (
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-9 items-center gap-2 border border-zinc-700 px-3 text-xs text-zinc-200 hover:bg-zinc-900"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open
+              </a>
+            )}
+          </div>
+        </div>
+        <div className="overflow-auto p-4">
+          {imageUrl && (
+            <div className="flex min-h-full items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element -- Direct remote 4cdn preview; do not proxy or persist attachments. */}
+              <img
+                src={imageUrl}
+                alt={filename || "post attachment"}
+                referrerPolicy="no-referrer"
+                className="rounded border border-zinc-800 object-contain"
+                style={{
+                  maxWidth: zoom === 1 ? "100%" : "none",
+                  maxHeight: zoom === 1 ? "100%" : "none",
+                  width: zoom === 1 ? "auto" : `${zoom * 100}%`,
+                  transformOrigin: "center center",
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

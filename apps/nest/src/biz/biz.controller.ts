@@ -43,11 +43,27 @@ export class BizController {
         },
       },
     });
+    const opPosts = await this.prisma.biz_post.findMany({
+      where: {
+        is_op: true,
+        thread_no: { in: threads.map((thread) => thread.thread_no) },
+      },
+      select: {
+        thread_no: true,
+        attachment: true,
+      },
+    });
+    const attachmentsByThread = new Map(
+      opPosts.map((post) => [post.thread_no, post.attachment]),
+    );
 
     return threads.map((thread) => ({
       ...this.serializeDates(thread),
       post_count: thread._count.posts,
       latest_post_at: thread.posts[0]?.posted_at.toISOString() ?? null,
+      attachment: thread.active
+        ? (attachmentsByThread.get(thread.thread_no) ?? null)
+        : null,
       _count: undefined,
       posts: undefined,
     }));
@@ -399,6 +415,7 @@ export class BizController {
       thread_no: post.thread_no,
       thread_subject: post.thread?.subject ?? null,
       thread_source_url: post.thread?.source_url ?? null,
+      thread_active: post.thread?.active ?? null,
       is_op: post.is_op,
       subject: post.subject,
       author_name: post.author_name,

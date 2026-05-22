@@ -18,6 +18,22 @@ export type BizPostAnalysisState =
   | "failed"
   | "stale";
 
+export interface BizAttachmentDto {
+  tim?: number;
+  filename?: string | null;
+  ext?: string | null;
+  fsize?: number | null;
+  md5?: string | null;
+  width?: number | null;
+  height?: number | null;
+  thumbnail_width?: number | null;
+  thumbnail_height?: number | null;
+  file_deleted?: boolean;
+  spoiler?: boolean;
+  media_url?: string;
+  thumbnail_url?: string;
+}
+
 export interface BizThreadDto {
   id: string;
   board: string;
@@ -36,6 +52,7 @@ export interface BizThreadDto {
   last_seen_at: string;
   post_count?: number;
   latest_post_at?: string | null;
+  attachment?: BizAttachmentDto | null;
 }
 
 export interface BizPostTagDto {
@@ -69,6 +86,7 @@ export interface BizPostDto {
   thread_no: number;
   thread_subject?: string | null;
   thread_source_url?: string | null;
+  thread_active?: boolean | null;
   is_op: boolean;
   subject: string | null;
   author_name: string | null;
@@ -76,7 +94,7 @@ export interface BizPostDto {
   posted_at: string;
   source_url: string;
   clean_text: string;
-  attachment: unknown | null;
+  attachment: BizAttachmentDto | null;
   analysis_state: BizPostAnalysisState;
   triaged_at: string | null;
   ai_analyzed_at: string | null;
