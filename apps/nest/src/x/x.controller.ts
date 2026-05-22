@@ -124,6 +124,15 @@ export class XController {
     return this.ingest.runIngest("manual");
   }
 
+  @Post("ingest/backfill")
+  runBackfill(@Body() body: { handle?: string; limit?: number }) {
+    return this.ingest.runBackfill({
+      handle: body?.handle?.trim().replace(/^@/, "") || undefined,
+      limit: body?.limit ?? 1000,
+      trigger: "backfill",
+    });
+  }
+
   // ============================================================================
   // AI analysis
   // ============================================================================

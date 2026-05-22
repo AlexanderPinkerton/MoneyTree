@@ -17,6 +17,7 @@ import {
   Ban,
   BarChart3,
   Bell,
+  Bot,
   ExternalLink,
   Filter,
   Loader2,
@@ -66,6 +67,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { RootStoreContext } from "@/context/rootStoreContext";
 import useAuthGuard from "@/hooks/useAuthGuard";
 import { fetchWithAuth } from "@/lib/utils";
@@ -140,6 +148,7 @@ export default function HomePage() {
   const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
   const [imageZoom, setImageZoom] = useState(1);
   const [imageFullscreen, setImageFullscreen] = useState(false);
+  const [opsOpen, setOpsOpen] = useState(false);
   const readerScrollRef = useRef<HTMLDivElement | null>(null);
 
   const authFetch = useCallback(
@@ -644,10 +653,14 @@ export default function HomePage() {
   return (
     <div className="biz-workspace min-h-screen bg-background text-foreground">
       <AppNavbar className="border-b border-border bg-background/95 text-foreground" />
+<<<<<<< HEAD
       <div className="pt-16">
         <SourceSwitcher />
       </div>
       <main className="mx-auto grid max-w-[1680px] gap-4 px-4 pb-8 pt-4">
+=======
+      <main className="mx-auto grid h-screen max-w-[1680px] grid-rows-[auto_minmax(0,1fr)] gap-4 px-4 pb-4 pt-24">
+>>>>>>> 9caa62eb796cbdf95fd403640f3461c18c4dd19b
         <section className="grid gap-3 border-b border-border pb-4 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <h1 className="text-2xl font-semibold tracking-normal">
@@ -690,44 +703,22 @@ export default function HomePage() {
             >
               Corpus
             </Button>
-            <StatusPill status={status} />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={refreshAll}
-              disabled={loading || activeIngest}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Refresh
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={triggerIngest}
-              disabled={loading || activeIngest}
-            >
-              {activeIngest ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowDownUp className="h-4 w-4" />
-              )}
-              {activeIngest ? "Ingesting" : "Run Ingest"}
-            </Button>
+            <OperationsStatusStrip
+              activeIngest={activeIngest}
+              analysisStatus={analysisStatus}
+              status={status}
+              onOpen={() => setOpsOpen(true)}
+            />
           </div>
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-[360px_minmax(0,1fr)_420px]">
-          <aside className="min-h-[72vh] border border-border bg-card">
+        <section className="grid min-h-0 grid-rows-[minmax(0,1fr)] gap-3 lg:grid-cols-[320px_minmax(0,1fr)_320px] xl:grid-cols-[360px_minmax(0,1fr)_340px]">
+          <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border border-border bg-card">
             <PanelHeader
               icon={<Activity className="h-4 w-4" />}
               title="Threads"
             />
-            <div className="max-h-[72vh] overflow-y-auto">
+            <div className="min-h-0 overflow-y-auto">
               {threads.map((thread) => (
                 <div
                   key={thread.thread_no}
@@ -792,7 +783,7 @@ export default function HomePage() {
             </div>
           </aside>
 
-          <section className="min-h-[72vh] border border-border bg-card">
+          <section className="flex min-h-0 flex-col border border-border bg-card">
             <PanelHeader
               icon={
                 readerMode === "corpus" ? (
@@ -913,71 +904,73 @@ export default function HomePage() {
                 Showing latest captured posts across all threads, newest first.
               </div>
             )}
-            {readerMode === "corpus" && !corpusSearched ? (
-              <CorpusOverview
-                overview={corpusOverview}
-                onTermBlacklist={(term) => void blacklistCorpusTerm(term)}
-                onTermRemoveBlacklist={(term) =>
-                  void removeCorpusBlacklistTerm(term)
-                }
-                onTermSearch={(term) => {
-                  if (term.kind === "security") {
-                    void runCorpusSearch({
-                      query: "",
-                      tag: "",
-                      symbol: term.value,
-                      sentiment: "all",
-                      analysisState: "all",
-                    });
-                    return;
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {readerMode === "corpus" && !corpusSearched ? (
+                <CorpusOverview
+                  overview={corpusOverview}
+                  onTermBlacklist={(term) => void blacklistCorpusTerm(term)}
+                  onTermRemoveBlacklist={(term) =>
+                    void removeCorpusBlacklistTerm(term)
                   }
-                  if (term.kind === "tag" || term.kind === "subject") {
+                  onTermSearch={(term) => {
+                    if (term.kind === "security") {
+                      void runCorpusSearch({
+                        query: "",
+                        tag: "",
+                        symbol: term.value,
+                        sentiment: "all",
+                        analysisState: "all",
+                      });
+                      return;
+                    }
+                    if (term.kind === "tag" || term.kind === "subject") {
+                      void runCorpusSearch({
+                        query: "",
+                        tag: term.value,
+                        symbol: "",
+                        sentiment: "all",
+                        analysisState: "all",
+                      });
+                      return;
+                    }
                     void runCorpusSearch({
-                      query: "",
-                      tag: term.value,
+                      query: term.value,
+                      tag: "",
                       symbol: "",
                       sentiment: "all",
                       analysisState: "all",
                     });
-                    return;
+                  }}
+                />
+              ) : (
+                <PostList
+                  posts={activePosts}
+                  readPostNos={readPostNos}
+                  scrollRef={readerScrollRef}
+                  showThreadContext={readerMode === "feed"}
+                  showImages={
+                    readerMode === "thread" ? threadDetail?.thread.active : true
                   }
-                  void runCorpusSearch({
-                    query: term.value,
-                    tag: "",
-                    symbol: "",
-                    sentiment: "all",
-                    analysisState: "all",
-                  });
-                }}
-              />
-            ) : (
-              <PostList
-                posts={activePosts}
-                readPostNos={readPostNos}
-                scrollRef={readerScrollRef}
-                showThreadContext={readerMode === "feed"}
-                showImages={
-                  readerMode === "thread" ? threadDetail?.thread.active : true
-                }
-                onImageOpen={(attachment, post) =>
-                  openImagePreview(attachment, `Post ${post.post_no}`)
-                }
-                onPostRead={markPostRead}
-                onThreadClick={(threadNo) => {
-                  setReaderMode("thread");
-                  setSelectedThreadNo(threadNo);
-                }}
-              />
-            )}
+                  onImageOpen={(attachment, post) =>
+                    openImagePreview(attachment, `Post ${post.post_no}`)
+                  }
+                  onPostRead={markPostRead}
+                  onThreadClick={(threadNo) => {
+                    setReaderMode("thread");
+                    setSelectedThreadNo(threadNo);
+                  }}
+                />
+              )}
+            </div>
           </section>
 
-          <aside className="grid min-h-[72vh] gap-3">
-            <section className="border border-border bg-card">
-              <PanelHeader
-                icon={<TrendingUp className="h-4 w-4" />}
-                title="Security Summary"
-              />
-              <div className="grid gap-3 p-3">
+          <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] border border-border bg-card">
+            <PanelHeader
+              icon={<TrendingUp className="h-4 w-4" />}
+              title="Security Summary"
+            />
+            <div className="min-h-0 overflow-y-auto p-3">
+              <div className="grid gap-3">
                 <div className="grid grid-cols-[1fr_auto] gap-2">
                   <Input
                     value={symbol}
@@ -997,156 +990,25 @@ export default function HomePage() {
                   </p>
                 )}
               </div>
-            </section>
-
-            <section className="border border-border bg-card">
-              <PanelHeader icon={<Bell className="h-4 w-4" />} title="Ingest" />
-              <div className="grid gap-3 p-3 text-sm">
-                <div className="rounded-md border border-border bg-muted p-3">
-                  {notice}
-                </div>
-                {activeIngest && (
-                  <div className="rounded-md border border-amber-700/60 bg-amber-950/40 p-3 text-amber-100">
-                    Ingest is active. First runs can take several minutes
-                    because the crawler respects the 1 request/second source API
-                    limit.
-                  </div>
-                )}
-                {ingestProgress && (
-                  <IngestProgressBar
-                    now={progressNow}
-                    progress={ingestProgress}
-                  />
-                )}
-                <Metric label="Threads" value={status?.total_threads ?? 0} />
-                <Metric
-                  label="Scraped posts"
-                  value={status?.total_posts ?? 0}
-                />
-                <Metric
-                  label="Triage queue"
-                  value={status?.queued_triage_jobs ?? 0}
-                />
-                <Metric
-                  label="Triaged posts"
-                  value={status?.completed_triage_jobs ?? 0}
-                />
-                <Metric
-                  label="Latest post"
-                  value={
-                    status?.latest_post_at
-                      ? new Date(status.latest_post_at).toLocaleString()
-                      : "none"
-                  }
-                />
-                <div className="rounded-md border border-border bg-card p-3">
-                  <div className="mb-2 text-[11px] uppercase text-muted-foreground">
-                    Progress Log
-                  </div>
-                  <div className="grid max-h-48 gap-2 overflow-y-auto font-mono text-xs text-foreground">
-                    {progressEvents.length > 0 ? (
-                      progressEvents.map((event, index) => (
-                        <div key={`${event}-${index}`}>{event}</div>
-                      ))
-                    ) : (
-                      <div>No progress events yet.</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="border border-border bg-card">
-              <PanelHeader
-                icon={<BarChart3 className="h-4 w-4" />}
-                title="Analysis"
-              />
-              <div className="grid gap-3 p-3 text-sm">
-                <AnalysisProgressBar status={analysisStatus} />
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => controlAnalysis("start")}
-                    disabled={
-                      !analysisStatus?.ai_enabled || analysisStatus?.running
-                    }
-                  >
-                    Start
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => controlAnalysis("pause")}
-                    disabled={analysisStatus?.paused}
-                  >
-                    Pause
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => controlAnalysis("resume")}
-                    disabled={!analysisStatus?.paused}
-                  >
-                    Resume
-                  </Button>
-                </div>
-                <Metric
-                  label="AI status"
-                  value={
-                    analysisStatus?.ai_enabled
-                      ? analysisStatus.current_message
-                      : "missing key"
-                  }
-                />
-                <Metric
-                  label="AI candidate posts"
-                  value={analysisStatus?.analyzable_posts ?? 0}
-                />
-                <Metric
-                  label="AI analyzed posts"
-                  value={analysisStatus?.analyzed_posts ?? 0}
-                />
-                <Metric
-                  label="Queued triage"
-                  value={analysisStatus?.queued_triage ?? 0}
-                />
-                <Metric
-                  label="Running triage"
-                  value={analysisStatus?.running_triage_jobs ?? 0}
-                />
-                <Metric label="Queued AI" value={analysisStatus?.queued ?? 0} />
-                <Metric
-                  label="Running AI"
-                  value={analysisStatus?.running_jobs ?? 0}
-                />
-                <Metric
-                  label="AI backlog"
-                  value={
-                    (analysisStatus?.queued ?? 0) +
-                    (analysisStatus?.running_jobs ?? 0)
-                  }
-                />
-                <Metric
-                  label="Failed triage"
-                  value={analysisStatus?.failed_triage ?? 0}
-                />
-                <Metric label="Failed AI" value={analysisStatus?.failed ?? 0} />
-                <Metric
-                  label="AI concurrency"
-                  value={analysisStatus?.ai_concurrency ?? 0}
-                />
-                <Metric
-                  label="Triage concurrency"
-                  value={analysisStatus?.triage_concurrency ?? 0}
-                />
-              </div>
-            </section>
+            </div>
           </aside>
         </section>
       </main>
+      <OperationsDrawer
+        activeIngest={activeIngest}
+        analysisStatus={analysisStatus}
+        ingestProgress={ingestProgress}
+        loading={loading}
+        notice={notice}
+        now={progressNow}
+        open={opsOpen}
+        progressEvents={progressEvents}
+        status={status}
+        onControlAnalysis={controlAnalysis}
+        onOpenChange={setOpsOpen}
+        onRefresh={refreshAll}
+        onRunIngest={triggerIngest}
+      />
       <ImagePreviewDialog
         preview={imagePreview}
         zoom={imageZoom}
@@ -1184,6 +1046,287 @@ function PanelHeader({
   );
 }
 
+function OperationsStatusStrip({
+  activeIngest,
+  analysisStatus,
+  status,
+  onOpen,
+}: {
+  activeIngest: boolean;
+  analysisStatus: BizAnalysisStatusDto | null;
+  status: BizIngestStatusDto | null;
+  onOpen: () => void;
+}) {
+  const aiBacklog =
+    (analysisStatus?.queued_triage ?? 0) +
+    (analysisStatus?.running_triage_jobs ?? 0) +
+    (analysisStatus?.queued ?? 0) +
+    (analysisStatus?.running_jobs ?? 0);
+  const analysisLabel = analysisStatus?.paused
+    ? "AI paused"
+    : analysisStatus?.running
+      ? "AI running"
+      : aiBacklog > 0
+        ? "AI queued"
+        : "AI idle";
+  const ingestLabel = activeIngest
+    ? "Ingesting"
+    : status?.latest_run?.status
+      ? `Ingest ${status.latest_run.status}`
+      : "Ingest idle";
+  const lastUpdatedAt =
+    status?.latest_run?.finished_at ??
+    status?.latest_run?.started_at ??
+    status?.latest_post_at ??
+    null;
+  const lastUpdatedLabel = lastUpdatedAt
+    ? `Last updated ${new Date(lastUpdatedAt).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      })}`
+    : "Last updated never";
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={onOpen}
+      className="h-9 border-border bg-card"
+    >
+      <Bot className="h-4 w-4" />
+      Ops
+      <span className="hidden border-l border-border pl-2 text-xs text-muted-foreground sm:inline">
+        {ingestLabel}
+      </span>
+      <span className="hidden text-xs text-muted-foreground md:inline">
+        {analysisLabel}
+      </span>
+      <span className="hidden border-l border-border pl-2 text-xs text-muted-foreground lg:inline">
+        {lastUpdatedLabel}
+      </span>
+      {aiBacklog > 0 ? (
+        <Badge variant="secondary" className="h-5 px-1.5 text-[11px]">
+          {aiBacklog}
+        </Badge>
+      ) : null}
+    </Button>
+  );
+}
+
+function OperationsDrawer({
+  activeIngest,
+  analysisStatus,
+  ingestProgress,
+  loading,
+  notice,
+  now,
+  open,
+  progressEvents,
+  status,
+  onControlAnalysis,
+  onOpenChange,
+  onRefresh,
+  onRunIngest,
+}: {
+  activeIngest: boolean;
+  analysisStatus: BizAnalysisStatusDto | null;
+  ingestProgress: IngestProgress | null;
+  loading: boolean;
+  notice: string;
+  now: number;
+  open: boolean;
+  progressEvents: string[];
+  status: BizIngestStatusDto | null;
+  onControlAnalysis: (action: "start" | "pause" | "resume") => void;
+  onOpenChange: (open: boolean) => void;
+  onRefresh: () => void;
+  onRunIngest: () => void;
+}) {
+  const triageBacklog =
+    (analysisStatus?.queued_triage ?? 0) +
+    (analysisStatus?.running_triage_jobs ?? 0);
+  const aiBacklog =
+    (analysisStatus?.queued ?? 0) + (analysisStatus?.running_jobs ?? 0);
+  const failedAnalysis =
+    (analysisStatus?.failed_triage ?? 0) + (analysisStatus?.failed ?? 0);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="right"
+        className="w-[min(92vw,640px)] overflow-y-auto border-border bg-background p-0 text-foreground sm:max-w-[640px]"
+      >
+        <SheetHeader className="border-b border-border p-4 pr-12">
+          <SheetTitle>Operations</SheetTitle>
+          <SheetDescription>
+            Ingest controls, AI analysis progress, and live event history.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="grid gap-3 p-4">
+          <section className="border border-border bg-card">
+            <PanelHeader icon={<Bell className="h-4 w-4" />} title="Ingest" />
+            <div className="grid gap-3 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <StatusPill status={status} />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={onRefresh}
+                    disabled={loading || activeIngest}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Refresh
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={onRunIngest}
+                    disabled={loading || activeIngest}
+                  >
+                    {activeIngest ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ArrowDownUp className="h-4 w-4" />
+                    )}
+                    {activeIngest ? "Ingesting" : "Run Ingest"}
+                  </Button>
+                </div>
+              </div>
+              {ingestProgress ? (
+                <IngestProgressBar now={now} progress={ingestProgress} />
+              ) : (
+                <div className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  {notice}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                <Metric label="Threads" value={status?.total_threads ?? 0} />
+                <Metric label="Posts" value={status?.total_posts ?? 0} />
+                <Metric
+                  label="Queued triage"
+                  value={status?.queued_triage_jobs ?? 0}
+                />
+                <Metric
+                  label="Triaged"
+                  value={status?.completed_triage_jobs ?? 0}
+                />
+                <Metric label="Queued AI" value={status?.queued_ai_jobs ?? 0} />
+                <Metric
+                  label="Completed AI"
+                  value={status?.completed_ai_jobs ?? 0}
+                />
+                <Metric
+                  label="Failed AI"
+                  value={status?.failed_analysis_jobs ?? 0}
+                />
+                <Metric
+                  label="Latest post"
+                  value={
+                    status?.latest_post_at
+                      ? new Date(status.latest_post_at).toLocaleTimeString()
+                      : "none"
+                  }
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="border border-border bg-card">
+            <PanelHeader icon={<Bot className="h-4 w-4" />} title="Analysis" />
+            <div className="grid gap-3 p-3">
+              <AnalysisProgressBar status={analysisStatus} />
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => onControlAnalysis("start")}
+                  disabled={
+                    !analysisStatus?.ai_enabled || analysisStatus?.running
+                  }
+                >
+                  Start
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onControlAnalysis("pause")}
+                  disabled={analysisStatus?.paused}
+                >
+                  Pause
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onControlAnalysis("resume")}
+                  disabled={!analysisStatus?.paused}
+                >
+                  Resume
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                <Metric
+                  label="AI status"
+                  value={analysisStatus?.ai_enabled ? "enabled" : "missing key"}
+                />
+                <Metric
+                  label="Analyzed"
+                  value={analysisStatus?.analyzed_posts ?? 0}
+                />
+                <Metric label="Triage backlog" value={triageBacklog} />
+                <Metric label="AI backlog" value={aiBacklog} />
+                <Metric label="Queued AI" value={analysisStatus?.queued ?? 0} />
+                <Metric
+                  label="Running AI"
+                  value={analysisStatus?.running_jobs ?? 0}
+                />
+                <Metric label="Failed" value={failedAnalysis} />
+                <Metric
+                  label="AI workers"
+                  value={
+                    analysisStatus?.ai_concurrency ??
+                    analysisStatus?.concurrency ??
+                    0
+                  }
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="border border-border bg-card">
+            <PanelHeader icon={<Bell className="h-4 w-4" />} title="Events" />
+            <div className="grid max-h-80 gap-2 overflow-y-auto p-3 font-mono text-xs text-foreground">
+              {progressEvents.length > 0 ? (
+                progressEvents.map((event, index) => (
+                  <div
+                    key={`${event}-${index}`}
+                    className="rounded-md border border-border bg-muted p-2"
+                  >
+                    {event}
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-md border border-border bg-muted p-2">
+                  No progress events yet.
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function CorpusOverview({
   overview,
   onTermBlacklist,
@@ -1204,90 +1347,97 @@ function CorpusOverview({
   }
 
   return (
-    <div className="grid max-h-[63vh] gap-4 overflow-y-auto p-4">
-      <div className="grid gap-2 md:grid-cols-4">
-        <Metric label="Window" value={overview.window_label ?? "Recent 24h"} />
-        <Metric label="Threads" value={overview.total_threads} />
-        <Metric label="Posts" value={overview.total_posts} />
-        <Metric
-          label="AI analyzed"
-          value={overview.analysis_counts.ai_analyzed ?? 0}
-        />
-      </div>
+    <div className="h-full min-h-0 overflow-y-auto p-4">
+      <div className="grid gap-4">
+        <div className="grid gap-2 md:grid-cols-4">
+          <Metric
+            label="Window"
+            value={overview.window_label ?? "Recent 24h"}
+          />
+          <Metric label="Threads" value={overview.total_threads} />
+          <Metric label="Posts" value={overview.total_posts} />
+          <Metric
+            label="AI analyzed"
+            value={overview.analysis_counts.ai_analyzed ?? 0}
+          />
+        </div>
 
-      <section className="grid gap-3 md:grid-cols-2">
-        <TrendingSecuritiesPanel
-          securities={overview.trending_securities ?? []}
-          onSymbolClick={(symbol) =>
-            onTermSearch({ value: symbol, kind: "security" })
-          }
-        />
+        <section className="grid gap-3 md:grid-cols-2">
+          <TrendingSecuritiesPanel
+            securities={overview.trending_securities ?? []}
+            onSymbolClick={(symbol) =>
+              onTermSearch({ value: symbol, kind: "security" })
+            }
+          />
+          <TermCloud
+            icon={<TrendingUp className="h-4 w-4" />}
+            title="Top Subjects"
+            terms={overview.top_subjects ?? []}
+            onTermClick={onTermSearch}
+            onTermBlacklist={onTermBlacklist}
+          />
+        </section>
+
         <TermCloud
-          icon={<TrendingUp className="h-4 w-4" />}
-          title="Top Subjects"
-          terms={overview.top_subjects ?? []}
+          icon={<BarChart3 className="h-4 w-4" />}
+          title="Terminology Heatmap"
+          terms={overview.signal_terms ?? overview.heatmap_terms}
+          heat
+          hint="Click to search; X hides the term"
+          action={
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setBlacklistOpen(true)}
+            >
+              <Ban className="h-4 w-4" />
+              Manage
+              <span className="text-muted-foreground">
+                {overview.term_blacklist?.length ?? 0}
+              </span>
+            </Button>
+          }
           onTermClick={onTermSearch}
           onTermBlacklist={onTermBlacklist}
         />
-      </section>
 
-      <TermCloud
-        icon={<BarChart3 className="h-4 w-4" />}
-        title="Terminology Heatmap"
-        terms={overview.signal_terms ?? overview.heatmap_terms}
-        heat
-        hint="Click to search; X hides the term"
-        action={
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setBlacklistOpen(true)}
-          >
-            <Ban className="h-4 w-4" />
-            Manage
-            <span className="text-muted-foreground">
-              {overview.term_blacklist?.length ?? 0}
-            </span>
-          </Button>
-        }
-        onTermClick={onTermSearch}
-        onTermBlacklist={onTermBlacklist}
-      />
+        <TermBlacklistDialog
+          open={blacklistOpen}
+          onOpenChange={setBlacklistOpen}
+          terms={overview.term_blacklist ?? []}
+          onAdd={onTermBlacklist}
+          onRemove={onTermRemoveBlacklist}
+        />
 
-      <TermBlacklistDialog
-        open={blacklistOpen}
-        onOpenChange={setBlacklistOpen}
-        terms={overview.term_blacklist ?? []}
-        onAdd={onTermBlacklist}
-        onRemove={onTermRemoveBlacklist}
-      />
+        <TermCloud
+          icon={<Tags className="h-4 w-4" />}
+          title="Top Tags"
+          terms={overview.top_tags}
+          onTermClick={onTermSearch}
+          onTermBlacklist={onTermBlacklist}
+        />
 
-      <TermCloud
-        icon={<Tags className="h-4 w-4" />}
-        title="Top Tags"
-        terms={overview.top_tags}
-        onTermClick={onTermSearch}
-        onTermBlacklist={onTermBlacklist}
-      />
-
-      <section>
-        <div className="mb-2 text-sm font-semibold">Recent Signal Evidence</div>
-        <div className="grid gap-2">
-          {overview.recent_posts.slice(0, 8).map((post) => (
-            <div key={post.id} className="border border-border bg-card p-3">
-              <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-mono">No. {post.post_no}</span>
-                <AnalysisBadge state={post.analysis_state} />
-                <span>{new Date(post.posted_at).toLocaleString()}</span>
+        <section>
+          <div className="mb-2 text-sm font-semibold">
+            Recent Signal Evidence
+          </div>
+          <div className="grid gap-2">
+            {overview.recent_posts.slice(0, 8).map((post) => (
+              <div key={post.id} className="border border-border bg-card p-3">
+                <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-mono">No. {post.post_no}</span>
+                  <AnalysisBadge state={post.analysis_state} />
+                  <span>{new Date(post.posted_at).toLocaleString()}</span>
+                </div>
+                <p className="line-clamp-3 text-sm text-foreground">
+                  {post.clean_text || "[no text]"}
+                </p>
               </div>
-              <p className="line-clamp-3 text-sm text-foreground">
-                {post.clean_text || "[no text]"}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
@@ -1555,7 +1705,7 @@ function PostList({
   }
 
   return (
-    <div ref={scrollRef} className="max-h-[63vh] overflow-y-auto">
+    <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto">
       {posts.map((post) => (
         <PostArticle
           key={post.id}
@@ -1916,9 +2066,21 @@ function Evidence({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function Metric({
+  label,
+  value,
+  compact = false,
+}: {
+  label: string;
+  value: string | number;
+  compact?: boolean;
+}) {
   return (
-    <div className="rounded-md border border-border bg-card px-3 py-2">
+    <div
+      className={`rounded-md border border-border bg-card px-3 ${
+        compact ? "py-1.5" : "py-2"
+      }`}
+    >
       <div className="text-[11px] uppercase text-muted-foreground">{label}</div>
       <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
@@ -1928,9 +2090,11 @@ function Metric({ label, value }: { label: string; value: string | number }) {
 function IngestProgressBar({
   now,
   progress,
+  compact = false,
 }: {
   now: number;
   progress: IngestProgress;
+  compact?: boolean;
 }) {
   const percent =
     progress.planned > 0
@@ -1944,7 +2108,9 @@ function IngestProgressBar({
   );
 
   return (
-    <div className="rounded-md border border-border bg-card p-3">
+    <div
+      className={`rounded-md border border-border bg-card ${compact ? "p-2" : "p-3"}`}
+    >
       <div className="mb-2 flex items-center justify-between gap-3 text-xs">
         <span className="font-medium text-foreground">{progress.message}</span>
         <span className="font-mono text-muted-foreground">{percent}%</span>
@@ -1955,16 +2121,24 @@ function IngestProgressBar({
           style={{ width: `${percent}%` }}
         />
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+      <div
+        className={`mt-2 grid gap-2 text-xs text-muted-foreground ${
+          compact ? "grid-cols-3" : "grid-cols-2"
+        }`}
+      >
         <span>
           {progress.checked}/{progress.planned || "?"} threads checked
         </span>
-        <span className="text-right">
+        <span className={compact ? "" : "text-right"}>
           ETA {etaSeconds > 0 ? `${etaSeconds}s` : "finishing"} · elapsed{" "}
           {elapsedSeconds}s
         </span>
-        <span>{progress.newPosts} new posts</span>
-        <span className="text-right">{progress.errors} errors</span>
+        <span className={compact ? "text-right" : ""}>
+          {progress.newPosts} new posts
+        </span>
+        {!compact && (
+          <span className="text-right">{progress.errors} errors</span>
+        )}
       </div>
     </div>
   );
@@ -1972,8 +2146,10 @@ function IngestProgressBar({
 
 function AnalysisProgressBar({
   status,
+  compact = false,
 }: {
   status: BizAnalysisStatusDto | null;
+  compact?: boolean;
 }) {
   const triageQueued = status?.queued_triage ?? 0;
   const triageRunning = status?.running_triage_jobs ?? 0;
@@ -1989,7 +2165,9 @@ function AnalysisProgressBar({
       : (status?.progress_percent ?? 0);
 
   return (
-    <div className="rounded-md border border-border bg-card p-3">
+    <div
+      className={`rounded-md border border-border bg-card ${compact ? "p-2" : "p-3"}`}
+    >
       <div className="mb-2 flex items-center justify-between gap-3 text-xs">
         <span className="font-medium text-foreground">
           {status?.current_message ?? "Analysis status unavailable"}
@@ -2002,19 +2180,29 @@ function AnalysisProgressBar({
           style={{ width: `${percent}%` }}
         />
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+      <div
+        className={`mt-2 grid gap-2 text-xs text-muted-foreground ${
+          compact ? "grid-cols-3" : "grid-cols-2"
+        }`}
+      >
         <span>
           {complete}/{total || "?"} posts analyzed
         </span>
-        <span className="text-right">
+        <span className={compact ? "" : "text-right"}>
           {status?.paused ? "paused" : status?.running ? "running" : "idle"}
         </span>
-        <span>{triageQueued + triageRunning} triage backlog</span>
-        <span className="text-right">{aiQueued + aiRunning} AI backlog</span>
-        <span>{failed} failed</span>
-        <span className="text-right">
-          {status?.ai_concurrency ?? status?.concurrency ?? 0} AI workers
+        <span className={compact ? "text-right" : ""}>
+          {aiQueued + aiRunning} AI backlog
         </span>
+        {!compact && (
+          <>
+            <span>{triageQueued + triageRunning} triage backlog</span>
+            <span>{failed} failed</span>
+            <span className="text-right">
+              {status?.ai_concurrency ?? status?.concurrency ?? 0} AI workers
+            </span>
+          </>
+        )}
       </div>
     </div>
   );

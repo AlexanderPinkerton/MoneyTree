@@ -16,6 +16,15 @@ const TWEETS_PER_HANDLE = 20;
 const BETWEEN_HANDLE_DELAY_MS = 1500;
 const ACCOUNT_FETCH_TIMEOUT_MS = 30_000;
 
+// Backfill tuning. Bird caps --max-pages at 10 per invocation, ~20 tweets/page,
+// so each bird call returns up to ~200 tweets. To go deeper we loop with cursor.
+const BACKFILL_MIN_LIMIT = 100;
+const BACKFILL_MAX_LIMIT = 3200; // hard ceiling from X's profile timeline
+const BACKFILL_PAGE_SIZE = 200; // tweets per bird invocation
+const BACKFILL_DELAY_BETWEEN_PAGES_MS = 2_000;
+const BACKFILL_DELAY_BETWEEN_HANDLES_MS = 3_000;
+const BACKFILL_INVOCATION_TIMEOUT_MS = 90_000;
+
 interface RawTweet {
   id?: string | number;
   id_str?: string;
@@ -254,6 +263,256 @@ export class XIngestService implements OnApplicationShutdown {
     }
 
     return { run_id: run.id, ...counters };
+  }
+
+  // ============================================================================
+  // Backfill (manual only — never called from cron)
+  // ============================================================================
+
+  async runBackfill(opts: { handle?: string; limit: number; trigger?: string }) {
+    if (this.isRunning) {
+      throw new ConflictException("X ingest already running");
+    }
+    const limit = Math.min(
+      Math.max(opts.limit ?? 1000, BACKFILL_MIN_LIMIT),
+      BACKFILL_MAX_LIMIT,
+    );
+    const creds = await this.pickCreds();
+    if (!creds) {
+      throw new ServiceUnavailableException(
+        "No connected X account — connect cookies before running backfill",
+      );
+    }
+
+    const accounts = opts.handle
+      ? await this.prisma.x_account.findMany({
+          where: { handle: opts.handle, is_active: true },
+        })
+      : await this.prisma.x_account.findMany({
+          where: { is_active: true },
+          orderBy: [{ weight: "desc" }, { handle: "asc" }],
+        });
+    if (accounts.length === 0) {
+      throw new NotFoundException(
+        opts.handle
+          ? `Account @${opts.handle} not found or inactive`
+          : "No active X accounts configured",
+      );
+    }
+
+    const run = await this.prisma.x_ingest_run.create({
+      data: {
+        status: "running",
+        accounts_planned: accounts.length,
+        trigger: opts.trigger ?? `backfill:${limit}`,
+      },
+    });
+    this.activeRunId = run.id;
+    this.isRunning = true;
+
+    this.realtime.broadcastXUpdate({
+      type: "x_update",
+      event: "ingest_started",
+      run_id: run.id,
+      accounts_planned: accounts.length,
+      message: `Backfill started (limit ${limit} per handle)`,
+    });
+
+    // Fire-and-forget: don't await, return early so the HTTP request closes.
+    void this.runBackfillLoop(run.id, accounts, creds, limit).catch((err) => {
+      this.logger.error(
+        `Backfill ${run.id} crashed: ${err instanceof Error ? err.message : err}`,
+      );
+    });
+
+    return {
+      run_id: run.id,
+      status: "started" as const,
+      accounts_planned: accounts.length,
+      limit,
+    };
+  }
+
+  private async runBackfillLoop(
+    runId: string,
+    accounts: { id: string; handle: string }[],
+    creds: BirdCreds,
+    perHandleLimit: number,
+  ) {
+    const counters = {
+      accounts_checked: 0,
+      new_tweets: 0,
+      error_count: 0,
+      last_error_message: null as string | null,
+    };
+
+    try {
+      for (const account of accounts) {
+        if (this.isShuttingDown) break;
+        let fetched = 0;
+        let cursor: string | undefined;
+        let newForHandle = 0;
+        try {
+          while (fetched < perHandleLimit) {
+            if (this.isShuttingDown) break;
+            const remaining = perHandleLimit - fetched;
+            const pageSize = Math.min(remaining, BACKFILL_PAGE_SIZE);
+            const result = await this.fetchHandlePage(
+              account.handle,
+              creds,
+              pageSize,
+              cursor,
+            );
+            fetched += result.tweetsReturned;
+            newForHandle += result.newCount;
+            counters.new_tweets += result.newCount;
+
+            this.realtime.broadcastXUpdate({
+              type: "x_update",
+              event: "ingest_progress",
+              run_id: runId,
+              handle: account.handle,
+              accounts_checked: counters.accounts_checked,
+              accounts_planned: accounts.length,
+              new_tweets: counters.new_tweets,
+              message: `@${account.handle}: ${fetched}/${perHandleLimit}`,
+            });
+
+            // No more pages? Stop early.
+            if (!result.nextCursor || result.tweetsReturned === 0) break;
+            cursor = result.nextCursor;
+            await this.delay(BACKFILL_DELAY_BETWEEN_PAGES_MS);
+          }
+          this.logger.log(
+            `Backfill @${account.handle}: fetched ${fetched}, ${newForHandle} new`,
+          );
+          await this.prisma.x_account.update({
+            where: { id: account.id },
+            data: { last_fetch_at: new Date() },
+          });
+        } catch (err) {
+          counters.error_count += 1;
+          const msg = err instanceof Error ? err.message : String(err);
+          counters.last_error_message = `${account.handle}: ${msg}`;
+          this.logger.warn(`Backfill failed @${account.handle}: ${msg}`);
+          if (
+            err instanceof BirdError &&
+            /401|auth/i.test(err.stderr ?? err.message)
+          ) {
+            await this.prisma.x_credentials.updateMany({
+              where: { auth_token: creds.auth_token },
+              data: { is_valid: false, last_checked_at: new Date() },
+            });
+            throw err;
+          }
+        } finally {
+          counters.accounts_checked += 1;
+          await this.prisma.x_ingest_run.update({
+            where: { id: runId },
+            data: {
+              accounts_checked: counters.accounts_checked,
+              new_tweets: counters.new_tweets,
+              error_count: counters.error_count,
+              last_error_message: counters.last_error_message,
+            },
+          });
+        }
+        if (this.isShuttingDown) break;
+        await this.delay(BACKFILL_DELAY_BETWEEN_HANDLES_MS);
+      }
+
+      await this.prisma.x_ingest_run.update({
+        where: { id: runId },
+        data: { status: "completed", finished_at: new Date() },
+      });
+      this.realtime.broadcastXUpdate({
+        type: "x_update",
+        event: "ingest_completed",
+        run_id: runId,
+        accounts_planned: accounts.length,
+        accounts_checked: counters.accounts_checked,
+        new_tweets: counters.new_tweets,
+        error_count: counters.error_count,
+        message: "Backfill completed",
+      });
+    } catch (err) {
+      await this.prisma.x_ingest_run.update({
+        where: { id: runId },
+        data: {
+          status: "failed",
+          finished_at: new Date(),
+          last_error_message:
+            err instanceof Error ? err.message : "Backfill failed",
+        },
+      });
+      this.realtime.broadcastXUpdate({
+        type: "x_update",
+        event: "ingest_failed",
+        run_id: runId,
+        message: err instanceof Error ? err.message : "Backfill failed",
+      });
+    } finally {
+      this.isRunning = false;
+      this.activeRunId = null;
+    }
+  }
+
+  private async fetchHandlePage(
+    handle: string,
+    creds: BirdCreds,
+    pageSize: number,
+    cursor?: string,
+  ): Promise<{ tweetsReturned: number; newCount: number; nextCursor?: string }> {
+    const args = [
+      "user-tweets",
+      handle,
+      "-n",
+      String(pageSize),
+      "--max-pages",
+      "10",
+    ];
+    if (cursor) {
+      args.push("--cursor", cursor);
+    }
+    const raw = await birdJson<unknown>(args, creds, {
+      timeoutMs: BACKFILL_INVOCATION_TIMEOUT_MS,
+    });
+    const tweets = this.normaliseTweets(raw);
+    let newCount = 0;
+    for (const tw of tweets) {
+      const persisted = await this.persistTweet(handle, tw);
+      if (persisted) newCount += 1;
+    }
+    return {
+      tweetsReturned: tweets.length,
+      newCount,
+      nextCursor: this.extractCursor(raw),
+    };
+  }
+
+  private extractCursor(raw: unknown): string | undefined {
+    if (!raw || typeof raw !== "object") return undefined;
+    const obj = raw as Record<string, unknown>;
+    const candidates = [
+      "next_cursor",
+      "nextCursor",
+      "cursor",
+      "bottomCursor",
+      "cursor_bottom",
+      "next",
+    ];
+    for (const key of candidates) {
+      const val = obj[key];
+      if (typeof val === "string" && val.length > 0) return val;
+    }
+    for (const wrapper of ["data", "meta", "pagination", "page_info"]) {
+      const nested = obj[wrapper];
+      if (nested && typeof nested === "object") {
+        const found = this.extractCursor(nested);
+        if (found) return found;
+      }
+    }
+    return undefined;
   }
 
   private async pickCreds(): Promise<BirdCreds | null> {

@@ -22,6 +22,7 @@ import {
   TrendingUp,
   TrendingDown,
   Sparkles,
+  History,
 } from "lucide-react";
 import type {
   XAccountDto,
@@ -39,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TickerSymbol } from "@/components/ticker/ticker-symbol";
+import { BackfillModal } from "@/components/x/backfill-modal";
 import { ConnectXModal } from "@/components/x/connect-x-modal";
 import { RootStoreContext } from "@/context/rootStoreContext";
 import useAuthGuard from "@/hooks/useAuthGuard";
@@ -114,6 +116,7 @@ export default function HomeXPage() {
   const [ingestLoading, setIngestLoading] = useState(false);
   const [analyzeLoading, setAnalyzeLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [backfillOpen, setBackfillOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const authFetch = useCallback(
@@ -308,6 +311,28 @@ export default function HomeXPage() {
     }
   }, [authFetch, loadIngestStatus]);
 
+  const handleRunBackfill = useCallback(
+    async (input: { handle: string | null; limit: number }) => {
+      const result = await authFetch<{
+        run_id: string;
+        accounts_planned: number;
+        limit: number;
+      }>("/x/ingest/backfill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          handle: input.handle ?? undefined,
+          limit: input.limit,
+        }),
+      });
+      await loadIngestStatus();
+      setNotice(
+        `Backfill started: ${result.accounts_planned} account(s) × ${result.limit} tweets`,
+      );
+    },
+    [authFetch, loadIngestStatus],
+  );
+
   const handleRunAnalysis = useCallback(async () => {
     setAnalyzeLoading(true);
     setNotice("Analyzing tweets…");
@@ -400,6 +425,16 @@ export default function HomeXPage() {
                   Run ingest
                 </>
               )}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBackfillOpen(true)}
+              disabled={ingestStatus?.isRunning || !creds?.connected}
+              title="Pull historical tweets via paginated bird calls"
+            >
+              <History className="mr-2 h-4 w-4" />
+              Backfill
             </Button>
             <Button
               size="sm"
@@ -818,6 +853,12 @@ export default function HomeXPage() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onSubmit={handleConnect}
+      />
+      <BackfillModal
+        open={backfillOpen}
+        onOpenChange={setBackfillOpen}
+        accounts={accounts.map((a) => ({ handle: a.handle, label: a.label }))}
+        onSubmit={handleRunBackfill}
       />
     </div>
   );
