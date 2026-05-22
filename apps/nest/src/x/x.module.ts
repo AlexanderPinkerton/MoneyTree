@@ -5,6 +5,7 @@ import { XAccountsService } from "./x-accounts.service";
 import { XAiService } from "./x-ai.service";
 import { XController } from "./x.controller";
 import { XCredentialsService } from "./x-credentials.service";
+import { XGraphqlService } from "./x-graphql.service";
 import { XIngestService } from "./x-ingest.service";
 import { XSentimentService } from "./x-sentiment.service";
 
@@ -14,6 +15,7 @@ import { XSentimentService } from "./x-sentiment.service";
   providers: [
     XAccountsService,
     XCredentialsService,
+    XGraphqlService,
     XIngestService,
     XAiService,
     XSentimentService,
@@ -21,6 +23,7 @@ import { XSentimentService } from "./x-sentiment.service";
   exports: [
     XAccountsService,
     XCredentialsService,
+    XGraphqlService,
     XIngestService,
     XAiService,
     XSentimentService,

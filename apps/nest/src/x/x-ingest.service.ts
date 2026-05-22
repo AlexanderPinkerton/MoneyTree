@@ -11,19 +11,34 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { birdJson, BirdError, type BirdCreds } from "./bird.runner";
+import { XGraphqlService, XRateLimitError } from "./x-graphql.service";
 
 const TWEETS_PER_HANDLE = 20;
-const BETWEEN_HANDLE_DELAY_MS = 1500;
+const BETWEEN_HANDLE_DELAY_MS = envMs("X_BETWEEN_HANDLE_DELAY_MS", 15_000);
 const ACCOUNT_FETCH_TIMEOUT_MS = 30_000;
+const RATE_LIMIT_COOLDOWN_MS = envMs("X_RATE_LIMIT_COOLDOWN_MS", 15 * 60_000);
 
 // Backfill tuning. Bird caps --max-pages at 10 per invocation, ~20 tweets/page,
 // so each bird call returns up to ~200 tweets. To go deeper we loop with cursor.
 const BACKFILL_MIN_LIMIT = 100;
 const BACKFILL_MAX_LIMIT = 3200; // hard ceiling from X's profile timeline
 const BACKFILL_PAGE_SIZE = 200; // tweets per bird invocation
-const BACKFILL_DELAY_BETWEEN_PAGES_MS = 2_000;
-const BACKFILL_DELAY_BETWEEN_HANDLES_MS = 3_000;
+const BACKFILL_DELAY_BETWEEN_PAGES_MS = envMs(
+  "X_BACKFILL_DELAY_BETWEEN_PAGES_MS",
+  60_000,
+);
+const BACKFILL_DELAY_BETWEEN_HANDLES_MS = envMs(
+  "X_BACKFILL_DELAY_BETWEEN_HANDLES_MS",
+  60_000,
+);
 const BACKFILL_INVOCATION_TIMEOUT_MS = 90_000;
+const DIRECT_GRAPHQL_ENABLED = process.env.X_DIRECT_GRAPHQL !== "false";
+const directGraphqlMode = DIRECT_GRAPHQL_ENABLED ? "direct GraphQL" : "bird";
+
+function envMs(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
 
 interface RawTweet {
   id?: string | number;
@@ -31,6 +46,9 @@ interface RawTweet {
   text?: string;
   full_text?: string;
   content?: string;
+  _raw?: unknown;
+  tweet?: unknown;
+  article?: unknown;
   likes?: number;
   favorite_count?: number;
   retweets?: number;
@@ -39,6 +57,11 @@ interface RawTweet {
   reply_count?: number;
   views?: number;
   view_count?: number;
+  likeCount?: number;
+  retweetCount?: number;
+  replyCount?: number;
+  viewCount?: number;
+  createdAt?: string;
   created_at?: string;
   time?: string;
   posted_at?: string;
@@ -58,10 +81,12 @@ export class XIngestService implements OnApplicationShutdown {
   private isRunning = false;
   private isShuttingDown = false;
   private activeRunId: string | null = null;
+  private rateLimitedUntil: Date | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly graphql: XGraphqlService,
   ) {}
 
   @Cron(CronExpression.EVERY_30_MINUTES)
@@ -105,6 +130,7 @@ export class XIngestService implements OnApplicationShutdown {
     ]);
     return {
       isRunning: this.isRunning,
+      rate_limited_until: this.activeRateLimitUntil()?.toISOString() ?? null,
       activeRun: activeRun
         ? {
             id: activeRun.id,
@@ -135,6 +161,7 @@ export class XIngestService implements OnApplicationShutdown {
     if (this.isRunning) {
       throw new ConflictException("X ingest already running");
     }
+    this.assertNotRateLimited();
     const creds = await this.pickCreds();
     if (!creds) {
       throw new ServiceUnavailableException(
@@ -195,18 +222,19 @@ export class XIngestService implements OnApplicationShutdown {
           });
         } catch (err) {
           counters.error_count += 1;
-          const msg =
-            err instanceof Error ? err.message : "Unknown bird error";
+          const msg = err instanceof Error ? err.message : "Unknown bird error";
           counters.last_error_message = `${account.handle}: ${msg}`;
-          this.logger.warn(
-            `Fetch failed for @${account.handle}: ${msg}`,
-          );
-          if (err instanceof BirdError && /401|auth/i.test(err.stderr ?? err.message)) {
+          this.logger.warn(`Fetch failed for @${account.handle}: ${msg}`);
+          if (this.isAuthError(err)) {
             // Credentials invalid — short circuit
             await this.prisma.x_credentials.updateMany({
               where: { auth_token: creds.auth_token },
               data: { is_valid: false, last_checked_at: new Date() },
             });
+            throw err;
+          }
+          if (this.isRateLimitError(err)) {
+            this.startRateLimitCooldown(err);
             throw err;
           }
         } finally {
@@ -269,10 +297,15 @@ export class XIngestService implements OnApplicationShutdown {
   // Backfill (manual only — never called from cron)
   // ============================================================================
 
-  async runBackfill(opts: { handle?: string; limit: number; trigger?: string }) {
+  async runBackfill(opts: {
+    handle?: string;
+    limit: number;
+    trigger?: string;
+  }) {
     if (this.isRunning) {
       throw new ConflictException("X ingest already running");
     }
+    this.assertNotRateLimited();
     const limit = Math.min(
       Math.max(opts.limit ?? 1000, BACKFILL_MIN_LIMIT),
       BACKFILL_MAX_LIMIT,
@@ -395,14 +428,15 @@ export class XIngestService implements OnApplicationShutdown {
           const msg = err instanceof Error ? err.message : String(err);
           counters.last_error_message = `${account.handle}: ${msg}`;
           this.logger.warn(`Backfill failed @${account.handle}: ${msg}`);
-          if (
-            err instanceof BirdError &&
-            /401|auth/i.test(err.stderr ?? err.message)
-          ) {
+          if (this.isAuthError(err)) {
             await this.prisma.x_credentials.updateMany({
               where: { auth_token: creds.auth_token },
               data: { is_valid: false, last_checked_at: new Date() },
             });
+            throw err;
+          }
+          if (this.isRateLimitError(err)) {
+            this.startRateLimitCooldown(err);
             throw err;
           }
         } finally {
@@ -462,7 +496,30 @@ export class XIngestService implements OnApplicationShutdown {
     creds: BirdCreds,
     pageSize: number,
     cursor?: string,
-  ): Promise<{ tweetsReturned: number; newCount: number; nextCursor?: string }> {
+  ): Promise<{
+    tweetsReturned: number;
+    newCount: number;
+    nextCursor?: string;
+  }> {
+    if (DIRECT_GRAPHQL_ENABLED) {
+      this.logger.debug(`Fetching @${handle} page via ${directGraphqlMode}`);
+      const result = await this.graphql.userTweets(handle, creds, {
+        count: pageSize,
+        cursor,
+        timeoutMs: BACKFILL_INVOCATION_TIMEOUT_MS,
+      });
+      let newCount = 0;
+      for (const tw of result.tweets) {
+        const persisted = await this.persistTweet(handle, tw);
+        if (persisted) newCount += 1;
+      }
+      return {
+        tweetsReturned: result.tweets.length,
+        newCount,
+        nextCursor: result.nextCursor,
+      };
+    }
+
     const args = [
       "user-tweets",
       handle,
@@ -470,6 +527,7 @@ export class XIngestService implements OnApplicationShutdown {
       String(pageSize),
       "--max-pages",
       "10",
+      "--json-full",
     ];
     if (cursor) {
       args.push("--cursor", cursor);
@@ -515,6 +573,48 @@ export class XIngestService implements OnApplicationShutdown {
     return undefined;
   }
 
+  private activeRateLimitUntil() {
+    if (!this.rateLimitedUntil) return null;
+    if (this.rateLimitedUntil.getTime() <= Date.now()) {
+      this.rateLimitedUntil = null;
+      return null;
+    }
+    return this.rateLimitedUntil;
+  }
+
+  private assertNotRateLimited() {
+    const until = this.activeRateLimitUntil();
+    if (!until) return;
+    throw new ServiceUnavailableException(
+      `X ingest paused for rate limit until ${until.toLocaleString()}`,
+    );
+  }
+
+  private startRateLimitCooldown(err?: unknown) {
+    const retryAt =
+      err instanceof XRateLimitError && err.retryAt ? err.retryAt : null;
+    const fallback = new Date(Date.now() + RATE_LIMIT_COOLDOWN_MS);
+    this.rateLimitedUntil =
+      retryAt && retryAt.getTime() > Date.now() ? retryAt : fallback;
+    this.logger.warn(
+      `X rate limit hit; pausing ingest until ${this.rateLimitedUntil.toLocaleString()}`,
+    );
+  }
+
+  private isRateLimitError(err: unknown) {
+    if (err instanceof XRateLimitError) return true;
+    if (!(err instanceof BirdError)) return false;
+    return /429|rate limit/i.test(`${err.message}\n${err.stderr ?? ""}`);
+  }
+
+  private isAuthError(err: unknown) {
+    if (!(err instanceof BirdError) && !(err instanceof XRateLimitError)) {
+      return false;
+    }
+    const stderr = err instanceof BirdError ? (err.stderr ?? "") : "";
+    return /401|auth/i.test(`${stderr}\n${err.message}`);
+  }
+
   private async pickCreds(): Promise<BirdCreds | null> {
     const row = await this.prisma.x_credentials.findFirst({
       where: { is_valid: true },
@@ -525,10 +625,28 @@ export class XIngestService implements OnApplicationShutdown {
   }
 
   private async fetchHandle(handle: string, creds: BirdCreds) {
-    const raw = await birdJson<RawTweet[] | { tweets?: RawTweet[]; data?: RawTweet[] }>(
-      ["user-tweets", handle, "-n", String(TWEETS_PER_HANDLE)],
+    if (DIRECT_GRAPHQL_ENABLED) {
+      this.logger.debug(`Fetching @${handle} via ${directGraphqlMode}`);
+      const result = await this.graphql.userTweets(handle, creds, {
+        count: TWEETS_PER_HANDLE,
+        timeoutMs: ACCOUNT_FETCH_TIMEOUT_MS,
+      });
+      let newCount = 0;
+      for (const tw of result.tweets) {
+        const persisted = await this.persistTweet(handle, tw);
+        if (persisted) newCount += 1;
+      }
+      return { newCount };
+    }
+
+    const raw = await birdJson<
+      RawTweet[] | { tweets?: RawTweet[]; data?: RawTweet[] }
+    >(
+      ["user-tweets", handle, "-n", String(TWEETS_PER_HANDLE), "--json-full"],
       creds,
-      { timeoutMs: ACCOUNT_FETCH_TIMEOUT_MS },
+      {
+        timeoutMs: ACCOUNT_FETCH_TIMEOUT_MS,
+      },
     );
 
     const tweets = this.normaliseTweets(raw);
@@ -553,12 +671,22 @@ export class XIngestService implements OnApplicationShutdown {
   private async persistTweet(handle: string, tw: RawTweet): Promise<boolean> {
     const tweetId = String(tw.id ?? tw.id_str ?? "").trim();
     if (!tweetId) return false;
-    const text = tw.text ?? tw.full_text ?? tw.content ?? "";
+    const text = this.extractTweetText(tw);
+    if (!text) {
+      this.logger.warn(`Skipping tweet ${tweetId}: missing tweet text`);
+      return false;
+    }
     const postedAtRaw =
-      tw.created_at ?? tw.posted_at ?? tw.time ?? new Date().toISOString();
+      tw.createdAt ?? tw.created_at ?? tw.posted_at ?? tw.time ?? null;
+    if (!postedAtRaw) {
+      this.logger.warn(`Skipping tweet ${tweetId}: missing tweet timestamp`);
+      return false;
+    }
     const postedAt = new Date(postedAtRaw);
     if (isNaN(postedAt.getTime())) {
-      this.logger.warn(`Skipping tweet ${tweetId}: bad timestamp ${postedAtRaw}`);
+      this.logger.warn(
+        `Skipping tweet ${tweetId}: bad timestamp ${postedAtRaw}`,
+      );
       return false;
     }
     const url =
@@ -577,27 +705,30 @@ export class XIngestService implements OnApplicationShutdown {
           tweet_id: tweetId,
           handle,
           text,
-          likes: tw.likes ?? tw.favorite_count ?? 0,
-          retweets: tw.retweets ?? tw.retweet_count ?? 0,
-          replies: tw.replies ?? tw.reply_count ?? 0,
-          views: tw.views ?? tw.view_count ?? null,
+          likes: tw.likes ?? tw.favorite_count ?? tw.likeCount ?? 0,
+          retweets: tw.retweets ?? tw.retweet_count ?? tw.retweetCount ?? 0,
+          replies: tw.replies ?? tw.reply_count ?? tw.replyCount ?? 0,
+          views: tw.views ?? tw.view_count ?? tw.viewCount ?? null,
           is_retweet: !!tw.is_retweet || !!retweetOf,
           retweet_of: retweetOf,
           reply_to:
             tw.in_reply_to_status_id != null
               ? String(tw.in_reply_to_status_id)
-              : tw.reply_to ?? null,
+              : (tw.reply_to ?? null),
           url,
           posted_at: postedAt,
           raw_json: tw as any,
           media: (tw.media ?? tw.attachments ?? null) as any,
         },
         update: {
-          likes: tw.likes ?? tw.favorite_count ?? 0,
-          retweets: tw.retweets ?? tw.retweet_count ?? 0,
-          replies: tw.replies ?? tw.reply_count ?? 0,
-          views: tw.views ?? tw.view_count ?? null,
+          text,
+          likes: tw.likes ?? tw.favorite_count ?? tw.likeCount ?? 0,
+          retweets: tw.retweets ?? tw.retweet_count ?? tw.retweetCount ?? 0,
+          replies: tw.replies ?? tw.reply_count ?? tw.replyCount ?? 0,
+          views: tw.views ?? tw.view_count ?? tw.viewCount ?? null,
+          posted_at: postedAt,
           raw_json: tw as any,
+          media: (tw.media ?? tw.attachments ?? null) as any,
         },
       });
       // Detect if the upsert was a create by checking if first_seen_at == updated_at
@@ -605,7 +736,10 @@ export class XIngestService implements OnApplicationShutdown {
         where: { tweet_id: tweetId },
         select: { first_seen_at: true, updated_at: true },
       });
-      if (persisted && persisted.first_seen_at.getTime() === persisted.updated_at.getTime()) {
+      if (
+        persisted &&
+        persisted.first_seen_at.getTime() === persisted.updated_at.getTime()
+      ) {
         return true;
       }
       return false;
@@ -617,6 +751,138 @@ export class XIngestService implements OnApplicationShutdown {
       );
       return false;
     }
+  }
+
+  private extractTweetText(tw: RawTweet) {
+    return this.longestText([
+      this.extractGraphqlTweetText(tw._raw),
+      this.extractGraphqlTweetText(tw.tweet),
+      this.extractArticleText(tw.article),
+      tw.full_text,
+      tw.content,
+      tw.text,
+    ]);
+  }
+
+  private extractGraphqlTweetText(raw: unknown): string | undefined {
+    const result = this.unwrapTweetResult(raw);
+    if (!result) return undefined;
+
+    return this.longestText([
+      this.extractArticleText(this.valueAt(result, "article")),
+      this.extractNoteTweetText(result),
+      this.stringAt(result, "legacy", "full_text"),
+    ]);
+  }
+
+  private unwrapTweetResult(raw: unknown): Record<string, unknown> | null {
+    if (!raw || typeof raw !== "object") return null;
+    const obj = raw as Record<string, unknown>;
+    if (obj.__typename === "TweetWithVisibilityResults") {
+      return this.unwrapTweetResult(obj.tweet);
+    }
+    if (obj.result) return this.unwrapTweetResult(obj.result);
+    return obj;
+  }
+
+  private extractNoteTweetText(result: Record<string, unknown>) {
+    const note = this.valueAt(
+      result,
+      "note_tweet",
+      "note_tweet_results",
+      "result",
+    );
+    return this.longestText([
+      this.stringAt(note, "text"),
+      this.stringAt(note, "richtext", "text"),
+      this.stringAt(note, "rich_text", "text"),
+      this.stringAt(note, "content", "text"),
+      this.stringAt(note, "content", "richtext", "text"),
+      this.stringAt(note, "content", "rich_text", "text"),
+    ]);
+  }
+
+  private extractArticleText(article: unknown) {
+    if (!article || typeof article !== "object") return undefined;
+    const root = article as Record<string, unknown>;
+    const result =
+      this.valueAt(root, "article_results", "result") ??
+      (root as Record<string, unknown>);
+    const title = this.longestText([
+      this.stringAt(result, "title"),
+      this.stringAt(root, "title"),
+    ]);
+    const contentStateText = this.extractContentStateText(
+      this.valueAt(result, "content_state"),
+    );
+    const body = this.longestText([
+      contentStateText,
+      this.stringAt(result, "plain_text"),
+      this.stringAt(root, "plain_text"),
+      this.stringAt(result, "body", "text"),
+      this.stringAt(result, "body", "richtext", "text"),
+      this.stringAt(result, "body", "rich_text", "text"),
+      this.stringAt(result, "content", "text"),
+      this.stringAt(result, "content", "richtext", "text"),
+      this.stringAt(result, "content", "rich_text", "text"),
+      this.stringAt(result, "text"),
+      this.stringAt(result, "richtext", "text"),
+      this.stringAt(result, "rich_text", "text"),
+      this.stringAt(root, "body", "text"),
+      this.stringAt(root, "body", "richtext", "text"),
+      this.stringAt(root, "body", "rich_text", "text"),
+      this.stringAt(root, "content", "text"),
+      this.stringAt(root, "content", "richtext", "text"),
+      this.stringAt(root, "content", "rich_text", "text"),
+      this.stringAt(root, "text"),
+      this.stringAt(root, "richtext", "text"),
+      this.stringAt(root, "rich_text", "text"),
+      this.stringAt(result, "preview_text"),
+      this.stringAt(root, "preview_text"),
+    ]);
+
+    if (title && body && body.trim() !== title.trim()) {
+      return body.startsWith(title) ? body : `${title}\n\n${body}`;
+    }
+    return body ?? title;
+  }
+
+  private extractContentStateText(contentState: unknown) {
+    if (!contentState || typeof contentState !== "object") return undefined;
+    const blocks = (contentState as Record<string, unknown>).blocks;
+    if (!Array.isArray(blocks)) return undefined;
+    const lines = blocks
+      .map((block) =>
+        block && typeof block === "object"
+          ? this.stringAt(block, "text")?.trim()
+          : undefined,
+      )
+      .filter((line): line is string => Boolean(line));
+    return lines.length > 0 ? lines.join("\n") : undefined;
+  }
+
+  private longestText(candidates: Array<string | undefined | null>) {
+    const values = candidates
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value));
+    if (values.length === 0) return undefined;
+    return values.reduce((longest, value) =>
+      value.length > longest.length ? value : longest,
+    );
+  }
+
+  private valueAt(source: unknown, ...path: string[]): unknown {
+    let current = source;
+    for (const key of path) {
+      if (!current || typeof current !== "object") return undefined;
+      current = (current as Record<string, unknown>)[key];
+    }
+    return current;
+  }
+
+  private stringAt(source: unknown, ...path: string[]) {
+    const value = this.valueAt(source, ...path);
+    return typeof value === "string" ? value : undefined;
   }
 
   private delay(ms: number) {

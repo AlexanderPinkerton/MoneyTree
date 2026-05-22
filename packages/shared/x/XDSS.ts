@@ -85,6 +85,7 @@ export interface XCredentialsStatusDto {
 
 export interface XIngestStatusDto {
   isRunning: boolean;
+  rate_limited_until: string | null;
   activeRun: {
     id: string;
     status: string;

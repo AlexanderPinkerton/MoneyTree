@@ -108,7 +108,7 @@ export default function HomeXPage() {
   const [sentiment, setSentiment] = useState<XSentimentOverviewDto | null>(
     null,
   );
-  const [window, setWindow] = useState<WindowKey>("7d");
+  const [selectedWindow, setSelectedWindow] = useState<WindowKey>("7d");
   const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [newHandle, setNewHandle] = useState("");
@@ -188,23 +188,34 @@ export default function HomeXPage() {
 
   useEffect(() => {
     if (!token) return;
-    setLoading(true);
-    Promise.all([
-      loadAccounts(),
-      loadCreds(),
-      loadIngestStatus(),
-      loadAnalysisStatus(),
-    ])
-      .catch((err) => setNotice(err instanceof Error ? err.message : String(err)))
-      .finally(() => setLoading(false));
+    const id = globalThis.setTimeout(() => {
+      setLoading(true);
+      Promise.all([
+        loadAccounts(),
+        loadCreds(),
+        loadIngestStatus(),
+        loadAnalysisStatus(),
+      ])
+        .catch((err) =>
+          setNotice(err instanceof Error ? err.message : String(err)),
+        )
+        .finally(() => setLoading(false));
+    }, 0);
+    return () => globalThis.clearTimeout(id);
   }, [token, loadAccounts, loadCreds, loadIngestStatus, loadAnalysisStatus]);
 
   useEffect(() => {
-    void loadSentiment(window, selectedHandle);
-  }, [window, selectedHandle, loadSentiment]);
+    const id = globalThis.setTimeout(() => {
+      void loadSentiment(selectedWindow, selectedHandle);
+    }, 0);
+    return () => globalThis.clearTimeout(id);
+  }, [selectedWindow, selectedHandle, loadSentiment]);
 
   useEffect(() => {
-    void loadTweets(selectedHandle, selectedTicker);
+    const id = globalThis.setTimeout(() => {
+      void loadTweets(selectedHandle, selectedTicker);
+    }, 0);
+    return () => globalThis.clearTimeout(id);
   }, [selectedHandle, selectedTicker, loadTweets]);
 
   // Poll ingest status while running
@@ -230,7 +241,7 @@ export default function HomeXPage() {
     }
     const id = setInterval(() => {
       void loadAnalysisStatus();
-      void loadSentiment(window, selectedHandle);
+      void loadSentiment(selectedWindow, selectedHandle);
       void loadTweets(selectedHandle, selectedTicker);
     }, 6000);
     return () => clearInterval(id);
@@ -242,7 +253,7 @@ export default function HomeXPage() {
     loadTweets,
     selectedHandle,
     selectedTicker,
-    window,
+    selectedWindow,
   ]);
 
   const handleConnect = useCallback(
@@ -356,7 +367,7 @@ export default function HomeXPage() {
         { method: "POST" },
       );
       await loadAnalysisStatus();
-      await loadSentiment(window, selectedHandle);
+      await loadSentiment(selectedWindow, selectedHandle);
       await loadTweets(selectedHandle);
       setNotice(
         res.skipped
@@ -374,7 +385,7 @@ export default function HomeXPage() {
     loadSentiment,
     loadTweets,
     selectedHandle,
-    window,
+    selectedWindow,
   ]);
 
   const headerTitle = useMemo(() => {
@@ -398,14 +409,17 @@ export default function HomeXPage() {
               X (Twitter) Signal Workspace
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Pulls recent tweets via the <code className="rounded bg-muted px-1">bird</code> CLI from a curated list of finance handles.
+              Pulls recent tweets via the{" "}
+              <code className="rounded bg-muted px-1">bird</code> CLI from a
+              curated list of finance handles.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {creds?.connected ? (
               <Badge className="flex items-center gap-1 bg-emerald-600 text-white">
                 <ShieldCheck size={12} />
-                Connected{creds.twitter_handle ? ` as @${creds.twitter_handle}` : ""}
+                Connected
+                {creds.twitter_handle ? ` as @${creds.twitter_handle}` : ""}
               </Badge>
             ) : (
               <Badge className="flex items-center gap-1 bg-amber-500 text-black">
@@ -413,7 +427,11 @@ export default function HomeXPage() {
                 Not connected
               </Badge>
             )}
-            <Button size="sm" variant="outline" onClick={() => setModalOpen(true)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setModalOpen(true)}
+            >
               {creds?.connected ? "Update cookies" : "Connect X"}
             </Button>
             {creds?.connected && (
@@ -429,7 +447,19 @@ export default function HomeXPage() {
             <Button
               size="sm"
               onClick={handleRunIngest}
-              disabled={ingestLoading || ingestStatus?.isRunning || !creds?.connected}
+              disabled={
+                ingestLoading ||
+                ingestStatus?.isRunning ||
+                Boolean(ingestStatus?.rate_limited_until) ||
+                !creds?.connected
+              }
+              title={
+                ingestStatus?.rate_limited_until
+                  ? `Rate limited until ${new Date(
+                      ingestStatus.rate_limited_until,
+                    ).toLocaleString()}`
+                  : undefined
+              }
             >
               {ingestStatus?.isRunning || ingestLoading ? (
                 <>
@@ -447,8 +477,18 @@ export default function HomeXPage() {
               size="sm"
               variant="outline"
               onClick={() => setBackfillOpen(true)}
-              disabled={ingestStatus?.isRunning || !creds?.connected}
-              title="Pull historical tweets via paginated bird calls"
+              disabled={
+                ingestStatus?.isRunning ||
+                Boolean(ingestStatus?.rate_limited_until) ||
+                !creds?.connected
+              }
+              title={
+                ingestStatus?.rate_limited_until
+                  ? `Rate limited until ${new Date(
+                      ingestStatus.rate_limited_until,
+                    ).toLocaleString()}`
+                  : "Pull historical tweets via paginated bird calls"
+              }
             >
               <History className="mr-2 h-4 w-4" />
               Backfill
@@ -457,8 +497,16 @@ export default function HomeXPage() {
               size="sm"
               variant="outline"
               onClick={handleRunAnalysis}
-              disabled={analyzeLoading || analysisStatus?.isProcessing || !analysisStatus?.enabled}
-              title={!analysisStatus?.enabled ? "OPENAI_API_KEY not configured" : undefined}
+              disabled={
+                analyzeLoading ||
+                analysisStatus?.isProcessing ||
+                !analysisStatus?.enabled
+              }
+              title={
+                !analysisStatus?.enabled
+                  ? "OPENAI_API_KEY not configured"
+                  : undefined
+              }
             >
               {analysisStatus?.isProcessing || analyzeLoading ? (
                 <>
@@ -484,9 +532,9 @@ export default function HomeXPage() {
               {WINDOWS.map(({ key, label }) => (
                 <button
                   key={key}
-                  onClick={() => setWindow(key)}
+                  onClick={() => setSelectedWindow(key)}
                   className={`px-3 py-1 text-xs transition-colors ${
-                    window === key
+                    selectedWindow === key
                       ? "bg-primary text-primary-foreground"
                       : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
                   }`}
@@ -503,8 +551,10 @@ export default function HomeXPage() {
           </div>
           {analysisStatus && (
             <span className="text-xs text-muted-foreground">
-              {analysisStatus.analyzed} analyzed · {analysisStatus.pending} pending
-              {analysisStatus.failed > 0 && ` · ${analysisStatus.failed} failed`}
+              {analysisStatus.analyzed} analyzed · {analysisStatus.pending}{" "}
+              pending
+              {analysisStatus.failed > 0 &&
+                ` · ${analysisStatus.failed} failed`}
             </span>
           )}
         </section>
@@ -522,7 +572,9 @@ export default function HomeXPage() {
               <span className="flex items-center gap-2">
                 <Activity className="h-4 w-4" />
                 Tracked accounts
-                <span className="text-xs text-muted-foreground">({accounts.length})</span>
+                <span className="text-xs text-muted-foreground">
+                  ({accounts.length})
+                </span>
               </span>
               <Button
                 size="sm"
@@ -533,7 +585,10 @@ export default function HomeXPage() {
                 All
               </Button>
             </header>
-            <form onSubmit={handleAddAccount} className="flex flex-col gap-2 border-b border-border p-3">
+            <form
+              onSubmit={handleAddAccount}
+              className="flex flex-col gap-2 border-b border-border p-3"
+            >
               <Input
                 value={newHandle}
                 onChange={(e) => setNewHandle(e.target.value)}
@@ -546,7 +601,11 @@ export default function HomeXPage() {
                 placeholder="Label (optional)"
                 disabled={adding}
               />
-              <Button type="submit" size="sm" disabled={adding || !newHandle.trim()}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={adding || !newHandle.trim()}
+              >
                 {adding ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -574,12 +633,19 @@ export default function HomeXPage() {
                       onClick={() => setSelectedHandle(account.handle)}
                       className="flex flex-1 flex-col items-start"
                     >
-                      <span className="font-mono text-sm text-foreground">@{account.handle}</span>
+                      <span className="font-mono text-sm text-foreground">
+                        @{account.handle}
+                      </span>
                       {account.label && (
-                        <span className="text-xs text-muted-foreground">{account.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {account.label}
+                        </span>
                       )}
                       <span className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                        last fetch: {account.last_fetch_at ? formatRelative(account.last_fetch_at) : "never"}
+                        last fetch:{" "}
+                        {account.last_fetch_at
+                          ? formatRelative(account.last_fetch_at)
+                          : "never"}
                       </span>
                     </button>
                     <button
@@ -647,12 +713,15 @@ export default function HomeXPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                      title={`Posted ${new Date(tweet.posted_at).toLocaleString()}`}
                     >
-                      {new Date(tweet.posted_at).toLocaleString()}
+                      Posted {formatRelative(tweet.posted_at)}
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   </header>
-                  <p className="whitespace-pre-wrap text-sm text-foreground">{tweet.text}</p>
+                  <p className="whitespace-pre-wrap text-sm text-foreground">
+                    {tweet.text}
+                  </p>
                   {tweet.summary && (
                     <p className="mt-1 text-xs italic text-muted-foreground">
                       AI: {tweet.summary}
@@ -669,19 +738,27 @@ export default function HomeXPage() {
                         )}
                       </Badge>
                     )}
-                    {tweet.subject && tweet.subject !== "not_market_relevant" && (
-                      <Badge variant="outline">{tweet.subject}</Badge>
-                    )}
+                    {tweet.subject &&
+                      tweet.subject !== "not_market_relevant" && (
+                        <Badge variant="outline">{tweet.subject}</Badge>
+                      )}
+                    <span className="inline-flex items-center gap-1">
+                      Captured {formatRelative(tweet.first_seen_at)}
+                    </span>
                     <span className="inline-flex items-center gap-1">
                       <Heart className="h-3 w-3" /> {formatCount(tweet.likes)}
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      <Repeat2 className="h-3 w-3" /> {formatCount(tweet.retweets)}
+                      <Repeat2 className="h-3 w-3" />{" "}
+                      {formatCount(tweet.retweets)}
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      <MessageCircle className="h-3 w-3" /> {formatCount(tweet.replies)}
+                      <MessageCircle className="h-3 w-3" />{" "}
+                      {formatCount(tweet.replies)}
                     </span>
-                    {tweet.is_retweet && <Badge variant="outline">retweet</Badge>}
+                    {tweet.is_retweet && (
+                      <Badge variant="outline">retweet</Badge>
+                    )}
                   </footer>
                 </article>
               ))}
@@ -693,12 +770,14 @@ export default function HomeXPage() {
             <header className="flex items-center justify-between border-b border-border px-3 py-2 text-sm font-medium">
               <span className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
-                Sentiment ({window})
+                Sentiment ({selectedWindow})
               </span>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => void loadSentiment(window, selectedHandle)}
+                onClick={() =>
+                  void loadSentiment(selectedWindow, selectedHandle)
+                }
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -865,7 +944,11 @@ export default function HomeXPage() {
                     </div>
                   ) : (
                     <div className="text-muted-foreground">
-                      Idle. Cron every 30 minutes.
+                      {ingestStatus?.rate_limited_until
+                        ? `Rate limited until ${new Date(
+                            ingestStatus.rate_limited_until,
+                          ).toLocaleString()}`
+                        : "Idle. Cron every 30 minutes."}
                     </div>
                   )}
                   {ingestStatus?.lastFinishedRun && (
@@ -873,7 +956,9 @@ export default function HomeXPage() {
                       Last: {ingestStatus.lastFinishedRun.status} ·{" "}
                       {ingestStatus.lastFinishedRun.new_tweets} new ·{" "}
                       {ingestStatus.lastFinishedRun.finished_at
-                        ? formatRelative(ingestStatus.lastFinishedRun.finished_at)
+                        ? formatRelative(
+                            ingestStatus.lastFinishedRun.finished_at,
+                          )
                         : "—"}
                     </div>
                   )}
