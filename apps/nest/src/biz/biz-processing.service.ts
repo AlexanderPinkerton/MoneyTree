@@ -49,6 +49,13 @@ const BULLISH_WORDS = [
   "accumulate",
   "rally",
   "undervalued",
+  "send",
+  "sending",
+  "strong",
+  "bounce",
+  "bouncing",
+  "reversal",
+  "squeeze",
 ];
 
 const BEARISH_WORDS = [
@@ -63,9 +70,75 @@ const BEARISH_WORDS = [
   "overvalued",
   "bankrupt",
   "recession",
+  "dumping",
+  "bleeding",
+  "rugged",
+  "rugpull",
+  "zero",
+];
+
+const CONTEXTUAL_BULLISH_WORDS = [
+  "based",
+  "god candle",
+  "green candle",
+  "bid",
+  "bids",
+  "holding",
+  "recovering",
+  "rip",
+  "ripping",
+];
+
+const CONTEXTUAL_BEARISH_WORDS = [
+  "dogshit",
+  "trash",
+  "weak",
+  "ugly",
+  "cooked",
+  "dead",
+  "rekt",
+  "bad",
+  "awful",
+  "terrible",
+  "horrible",
+  "scam",
+  "dumpster",
+];
+
+const MARKET_CONTEXT_WORDS = [
+  "chart",
+  "charts",
+  "candle",
+  "candles",
+  "price",
+  "ticker",
+  "coin",
+  "stock",
+  "shares",
+  "setup",
+  "support",
+  "resistance",
+  "trend",
+  "volume",
+  "ath",
+  "dip",
+  "bags",
+  "position",
+  "positions",
+  "calls",
+  "puts",
+  "short",
+  "shorts",
+  "long",
+  "longs",
+  "bull",
+  "bulls",
+  "bear",
+  "bears",
 ];
 
 const TRIAGE_RUNNING_TIMEOUT_MS = 5 * 60 * 1000;
+const TRIAGE_ANALYSIS_VERSION = "biz-triage-v2";
 
 @Injectable()
 export class BizProcessingService implements OnApplicationShutdown {
@@ -131,6 +204,16 @@ export class BizProcessingService implements OnApplicationShutdown {
     const result = this.classifyText(text);
 
     await this.prisma.$transaction([
+      this.prisma.biz_post_tag.deleteMany({
+        where: {
+          post_id: post.id,
+          source: "deterministic",
+          tag_type: { in: ["sentiment", "market_context"] },
+        },
+      }),
+      this.prisma.biz_security_mention.deleteMany({
+        where: { post_id: post.id, source: "deterministic" },
+      }),
       ...result.tags.map((tag) =>
         this.prisma.biz_post_tag.upsert({
           where: {
@@ -180,6 +263,8 @@ export class BizProcessingService implements OnApplicationShutdown {
           analysis_state: "triaged",
           triaged_at: new Date(),
           analyzed_at: new Date(),
+          analysis_model: "deterministic",
+          analysis_version: TRIAGE_ANALYSIS_VERSION,
           analysis_error: null,
         },
       }),
@@ -435,6 +520,45 @@ export class BizProcessingService implements OnApplicationShutdown {
     ]);
   }
 
+  async enqueueSentimentReprocess(limit = 1000) {
+    const posts = await this.prisma.biz_post.findMany({
+      where: {
+        OR: [
+          { analysis_model: null },
+          {
+            AND: [
+              { analysis_model: "deterministic" },
+              {
+                OR: [
+                  { analysis_version: null },
+                  { analysis_version: { not: TRIAGE_ANALYSIS_VERSION } },
+                ],
+              },
+            ],
+          },
+          {
+            tags: {
+              some: {
+                tag_type: "sentiment",
+                value: "neutral",
+                source: "deterministic",
+              },
+            },
+          },
+        ],
+      },
+      orderBy: { posted_at: "desc" },
+      take: limit,
+      select: { id: true, thread_no: true },
+    });
+
+    for (const post of posts) {
+      await this.enqueueTriage(post.id, post.thread_no);
+    }
+
+    return posts.length;
+  }
+
   buildSecuritySummary(
     symbol: string,
     mentions: Array<{
@@ -476,8 +600,9 @@ export class BizProcessingService implements OnApplicationShutdown {
 
   classifyText(text: string): TriageResult {
     const symbols = this.extractSymbols(text);
-    const stance = this.classifyStance(text);
-    const tags = this.extractTags(text, symbols, stance);
+    const stance = this.classifyStance(text, symbols);
+    const confidence = this.stanceConfidence(text, symbols, stance);
+    const tags = this.extractTags(text, symbols, stance, confidence);
     const snippet = this.evidenceSnippet(text);
 
     return {
@@ -490,7 +615,7 @@ export class BizProcessingService implements OnApplicationShutdown {
           asset_type: known?.assetType ?? null,
           sentiment: stance,
           stance,
-          confidence: stance === "neutral" ? 0.55 : 0.7,
+          confidence,
           evidence_snippet: snippet,
           source: "deterministic",
         };
@@ -503,8 +628,12 @@ export class BizProcessingService implements OnApplicationShutdown {
       result.mentions.length > 0 ||
       result.tags.some(
         (tag) =>
-          tag.tag_type === "subject" &&
-          ["crypto", "equities", "macro", "options"].includes(tag.value),
+          (tag.tag_type === "subject" &&
+            ["crypto", "equities", "macro", "options"].includes(tag.value)) ||
+          tag.tag_type === "market_context" ||
+          (tag.tag_type === "sentiment" &&
+            ["bullish", "bearish", "mixed"].includes(tag.value) &&
+            tag.confidence >= 0.7),
       )
     );
   }
@@ -539,30 +668,138 @@ export class BizProcessingService implements OnApplicationShutdown {
     return [...symbols].slice(0, 8);
   }
 
-  private classifyStance(text: string) {
+  private classifyStance(text: string, symbols: string[] = []) {
     const lower = text.toLowerCase();
-    const bullScore = BULLISH_WORDS.reduce(
-      (score, word) => score + (lower.includes(word) ? 1 : 0),
-      0,
-    );
-    const bearScore = BEARISH_WORDS.reduce(
-      (score, word) => score + (lower.includes(word) ? 1 : 0),
-      0,
-    );
+    const hasMarketContext = this.hasMarketContext(lower, symbols);
+    const negativeBearTarget = this.hasNegativeBearTarget(lower);
+    const negativeBullTarget = this.hasNegativeBullTarget(lower);
 
+    let bullScore = this.countTerms(lower, BULLISH_WORDS);
+    let bearScore = this.countTerms(lower, BEARISH_WORDS);
+
+    if (hasMarketContext) {
+      bullScore += this.countTerms(lower, CONTEXTUAL_BULLISH_WORDS) * 2;
+      bearScore += this.countTerms(lower, CONTEXTUAL_BEARISH_WORDS) * 2;
+    }
+
+    if (negativeBearTarget) bullScore += 5;
+    if (negativeBullTarget) bearScore += 5;
+
+    if (this.containsTerm(lower, "short squeeze")) bullScore += 3;
+    if (this.containsTerm(lower, "gamma squeeze")) bullScore += 3;
+    if (this.containsTerm(lower, "bull trap")) bearScore += 3;
+
+    if (bullScore >= bearScore + 2) return "bullish";
+    if (bearScore >= bullScore + 2) return "bearish";
     if (bullScore > 0 && bearScore > 0) return "mixed";
     if (bullScore > bearScore) return "bullish";
     if (bearScore > bullScore) return "bearish";
     return "neutral";
   }
 
-  private extractTags(text: string, symbols: string[], stance: string) {
+  private stanceConfidence(text: string, symbols: string[], stance: string) {
+    if (stance === "neutral") return 0.55;
+    const lower = text.toLowerCase();
+    const hasContext = this.hasMarketContext(lower, symbols);
+    const hasContextualSentiment =
+      this.countTerms(lower, CONTEXTUAL_BULLISH_WORDS) > 0 ||
+      this.countTerms(lower, CONTEXTUAL_BEARISH_WORDS) > 0;
+    if (hasContext && hasContextualSentiment) return 0.8;
+    if (hasContext) return 0.72;
+    return 0.65;
+  }
+
+  private hasMarketContext(text: string, symbols: string[]) {
+    return (
+      symbols.length > 0 ||
+      MARKET_CONTEXT_WORDS.some((word) => this.containsTerm(text, word))
+    );
+  }
+
+  private hasTechnicalAnalysisContext(text: string) {
+    return [
+      "chart",
+      "charts",
+      "candle",
+      "candles",
+      "support",
+      "resistance",
+      "breakout",
+      "trend",
+      "setup",
+    ].some((word) => this.containsTerm(text, word));
+  }
+
+  private hasNegativeBearTarget(text: string) {
+    return this.hasTargetedNegativeSentiment(text, [
+      "bear",
+      "bears",
+      "bear thesis",
+      "bear case",
+      "short",
+      "shorts",
+      "put",
+      "puts",
+    ]);
+  }
+
+  private hasNegativeBullTarget(text: string) {
+    return this.hasTargetedNegativeSentiment(text, [
+      "bull",
+      "bulls",
+      "bull thesis",
+      "bull case",
+      "long",
+      "longs",
+      "call",
+      "calls",
+    ]);
+  }
+
+  private hasTargetedNegativeSentiment(text: string, targets: string[]) {
+    return targets.some((target) =>
+      CONTEXTUAL_BEARISH_WORDS.some((negative) => {
+        const targetPattern = this.termPattern(target);
+        const negativePattern = this.termPattern(negative);
+        return (
+          new RegExp(`${targetPattern}.{0,40}${negativePattern}`).test(text) ||
+          new RegExp(`${negativePattern}.{0,40}${targetPattern}`).test(text)
+        );
+      }),
+    );
+  }
+
+  private countTerms(text: string, terms: string[]) {
+    return terms.reduce(
+      (score, term) => score + (this.containsTerm(text, term) ? 1 : 0),
+      0,
+    );
+  }
+
+  private containsTerm(text: string, term: string) {
+    return new RegExp(this.termPattern(term)).test(text);
+  }
+
+  private termPattern(term: string) {
+    const escaped = term
+      .trim()
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/\s+/g, "\\s+");
+    return `\\b${escaped}\\b`;
+  }
+
+  private extractTags(
+    text: string,
+    symbols: string[],
+    stance: string,
+    confidence: number,
+  ) {
     const lower = text.toLowerCase();
     const tags: TriageResult["tags"] = [
       {
         tag_type: "sentiment",
         value: stance,
-        confidence: stance === "neutral" ? 0.55 : 0.7,
+        confidence,
         source: "deterministic",
       },
     ];
@@ -592,6 +829,17 @@ export class BizProcessingService implements OnApplicationShutdown {
           source: "deterministic",
         });
       }
+    }
+
+    if (this.hasMarketContext(lower, symbols)) {
+      tags.push({
+        tag_type: "market_context",
+        value: this.hasTechnicalAnalysisContext(lower)
+          ? "technical_analysis"
+          : "price_action",
+        confidence: 0.75,
+        source: "deterministic",
+      });
     }
 
     return tags;

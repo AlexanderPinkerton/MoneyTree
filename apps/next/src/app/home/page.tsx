@@ -753,7 +753,9 @@ export default function HomePage() {
                     </span>
                   </div>
                   {isThreadUnread(thread, readPostNos) && (
-                    <Badge className="mt-2 bg-amber-500 text-black">new</Badge>
+                    <Badge className="mt-2 bg-emerald-600 text-white dark:bg-emerald-400 dark:text-black">
+                      new
+                    </Badge>
                   )}
                   {thread.active && thread.attachment && (
                     <AttachmentPreview
@@ -1593,7 +1595,9 @@ function PostArticle({
     <article
       onMouseEnter={() => onPostRead?.(post)}
       className={`border-b p-4 ${
-        read ? "border-border/80" : "border-amber-700/60 bg-amber-950/30"
+        read
+          ? "border-border/80"
+          : "border-emerald-300 bg-emerald-50/80 dark:border-emerald-700/60 dark:bg-emerald-950/30"
       }`}
     >
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -1609,7 +1613,11 @@ function PostArticle({
         )}
         <span>{new Date(post.posted_at).toLocaleString()}</span>
         <AnalysisBadge state={post.analysis_state} />
-        {!read && <Badge className="bg-amber-500 text-black">new</Badge>}
+        {!read && (
+          <Badge className="bg-emerald-600 text-white dark:bg-emerald-400 dark:text-black">
+            new
+          </Badge>
+        )}
         <a
           href={post.source_url}
           target="_blank"
@@ -1658,8 +1666,8 @@ function PostArticle({
 
 function PostSummary({ summary }: { summary: string }) {
   return (
-    <section className="mt-3 border border-emerald-700/50 bg-card px-3 py-2 text-sm leading-6 text-emerald-100">
-      <div className="mb-1 text-[11px] font-semibold uppercase text-emerald-300">
+    <section className="mt-3 border border-purple-300 bg-purple-50 px-3 py-2 text-sm leading-6 text-purple-950 dark:border-purple-700/60 dark:bg-purple-950/30 dark:text-purple-100">
+      <div className="mb-1 text-[11px] font-semibold uppercase text-purple-700 dark:text-purple-300">
         AI summary
       </div>
       {summary}
